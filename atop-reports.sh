@@ -291,45 +291,8 @@ fi
 # Get total system memory in KB for percentage calculations
 TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
 
-# Handle replay mode (--file flag)
-if [ -n "$REPLAY_FILE" ]; then
-    if [ ! -f "$REPLAY_FILE" ]; then
-        echo "ERROR: Snapshot file not found: $REPLAY_FILE" >&2
-        exit 1
-    fi
-    
-    if [ ! -s "$REPLAY_FILE" ]; then
-        echo "ERROR: Snapshot file is empty: $REPLAY_FILE" >&2
-        exit 1
-    fi
-    
-    # Replay mode: parse the file and exit
-    echo "Replay mode: Analyzing snapshot file $REPLAY_FILE" >&2
-    TIMESTAMP_START=$(date "+%Y-%m-%d %H:%M:%S")
-    TIMESTAMP_END="$TIMESTAMP_START"
-    REASON="replay"
-    
-    if [ "$OUTPUT_FORMAT" = "json" ]; then
-        parse_atop_output "$REPLAY_FILE" "$TIMESTAMP_START" "$TIMESTAMP_END" "/dev/null"
-    else
-        parse_atop_output "$REPLAY_FILE" "$TIMESTAMP_START" "$TIMESTAMP_END" "/dev/stdout"
-    fi
-    
-    exit 0
-fi
-
-# Normal monitoring mode initialization
-echo "ATOP Resource Monitor started at $(date)" >> "$LOG_FILE"
-echo "Configuration: Load=${LOAD_THRESHOLD}, Memory=${MEM_THRESHOLD}%, I/O Wait=${IO_WAIT_THRESHOLD}%" >> "$LOG_FILE"
-if [ "$LIMITED_MODE" -eq 1 ]; then
-    echo "Mode: LIMITED (non-root - per-process disk I/O unavailable)" >> "$LOG_FILE"
-else
-    echo "Mode: FULL (root access - all metrics available)" >> "$LOG_FILE"
-fi
-echo "================================================================================" >> "$LOG_FILE"
-
 #==============================================================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS (defined before replay mode uses them)
 #==============================================================================
 
 # Parse atop structured output and generate report
@@ -687,7 +650,7 @@ parse_atop_output() {
         if (sample_count > 0) {
             avg_sys_disk_read = system_disk_read / sample_count
             avg_sys_disk_write = system_disk_write / sample_count
-            printf "%.1f|%.1f\n", avg_sys_disk_read, avg_sys_disk_write > temp_dir"/system_disk.txt"
+            printf "%.1f %.1f\n", avg_sys_disk_read, avg_sys_disk_write > temp_dir"/system_disk.txt"
         }
     }
     ' "$snapshot_file"
@@ -902,6 +865,50 @@ get_parent_info() {
         echo " [$info_parts]"
     fi
 }
+
+#==============================================================================
+# REPLAY MODE HANDLING
+#==============================================================================
+
+# Handle replay mode (--file flag) - must be after functions are defined
+if [ -n "$REPLAY_FILE" ]; then
+    if [ ! -f "$REPLAY_FILE" ]; then
+        echo "ERROR: Snapshot file not found: $REPLAY_FILE" >&2
+        exit 1
+    fi
+    
+    if [ ! -s "$REPLAY_FILE" ]; then
+        echo "ERROR: Snapshot file is empty: $REPLAY_FILE" >&2
+        exit 1
+    fi
+    
+    # Replay mode: parse the file and exit
+    echo "Replay mode: Analyzing snapshot file $REPLAY_FILE" >&2
+    TIMESTAMP_START=$(date "+%Y-%m-%d %H:%M:%S")
+    TIMESTAMP_END="$TIMESTAMP_START"
+    REASON="replay"
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        parse_atop_output "$REPLAY_FILE" "$TIMESTAMP_START" "$TIMESTAMP_END" "/dev/null"
+    else
+        parse_atop_output "$REPLAY_FILE" "$TIMESTAMP_START" "$TIMESTAMP_END" "/dev/stdout"
+    fi
+    
+    exit 0
+fi
+
+#==============================================================================
+# NORMAL MONITORING MODE INITIALIZATION
+#==============================================================================
+
+echo "ATOP Resource Monitor started at $(date)" >> "$LOG_FILE"
+echo "Configuration: Load=${LOAD_THRESHOLD}, Memory=${MEM_THRESHOLD}%, I/O Wait=${IO_WAIT_THRESHOLD}%" >> "$LOG_FILE"
+if [ "$LIMITED_MODE" -eq 1 ]; then
+    echo "Mode: LIMITED (non-root - per-process disk I/O unavailable)" >> "$LOG_FILE"
+else
+    echo "Mode: FULL (root access - all metrics available)" >> "$LOG_FILE"
+fi
+echo "================================================================================" >> "$LOG_FILE"
 
 #==============================================================================
 # MAIN MONITORING LOOP
