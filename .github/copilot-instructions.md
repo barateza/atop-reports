@@ -106,97 +106,163 @@ grep '^cpu ' /proc/stat  # Sample 2
 
 ## Test Fixture Management
 
-### Automated Fixture Generation
-The project uses golden master fixtures for cross-version testing. These fixtures are binary atop snapshots captured from VMs running specific Ubuntu versions.
+### Automated Fixture Generation (Multi-OS Support)
+
+The project uses golden master fixtures for cross-version testing across **10 OS distributions** (Ubuntu, Debian, AlmaLinux). These fixtures are binary atop snapshots captured from VMs using a **hybrid strategy**: Multipass for Debian-based systems (Ubuntu/Debian) and Lima for RHEL-based systems (AlmaLinux).
 
 **Fixture Generation Script:** `tests/generate-all-fixtures.sh`
 
-**Full Workflow (40-60 minutes):**
+**Full Workflow (30 minutes warm, 2+ hours cold):**
 ```bash
 cd /path/to/atop-reports
+
+# Generate all fixtures (10 OS versions)
 ./tests/generate-all-fixtures.sh
 
-# What happens internally:
-# 1. For each Ubuntu version (18.04, 20.04, 22.04, 24.04):
-#    - Launch Multipass VM with appropriate image
-#    - Wait for SSH readiness (with retry logic)
-#    - Update APT cache (apt-get update)
-#    - Install atop package from official repos
-#    - Verify atop version matches expected
-#    - Capture 15-second snapshot: atop -w /tmp/fixture.raw 15 1
-#    - Transfer fixture to host: tests/fixtures/v{VERSION}-ubuntu{VERSION}.raw
-#    - Delete VM and purge storage
-# 2. All fixtures written to tests/fixtures/
-# 3. Each fixture: 5-20MB (depends on system load)
+# Generate specific OS family
+./tests/generate-all-fixtures.sh --os debian
+./tests/generate-all-fixtures.sh --os almalinux
+
+# Generate single version
+./tests/generate-all-fixtures.sh --os debian --version 12
+
+# Force rebuild (delete and recreate VMs)
+./tests/generate-all-fixtures.sh --force-rebuild
 ```
 
-**Generate single version only:**
+**What happens internally:**
+1. **Tool Selection:** Routes to Multipass (Ubuntu/Debian) or Lima (AlmaLinux)
+2. **VM Launch:** Creates VMs with 2GB RAM / 2 CPUs (prevents OOM)
+3. **VM Reuse Check:** Prompts to reuse existing VMs (5 min warm run)
+4. **Package Installation:** 
+   - Ubuntu/Debian: `apt-get install atop`
+   - AlmaLinux: `dnf install epel-release && dnf install atop` (with retry)
+5. **Version Verification:** Confirms atop version matches expected
+6. **Capture:** `atop -w /tmp/fixture.raw 15 1` (15 seconds)
+7. **Transfer:** Multipass `transfer` or Lima mount copy
+8. **Cleanup:** Optional VM deletion (or keep for reuse)
+
+**VM Naming Convention:**
+- **Multipass:** `mp-atop-ubuntu1804`, `mp-atop-debian12`
+- **Lima:** `lima-atop-alma8`, `lima-atop-alma9`
+
+**Prerequisites:**
 ```bash
-./tests/generate-all-fixtures.sh --version 22.04
-# Generates only Ubuntu 22.04 fixture (atop 2.7.1)
-# Useful for testing specific version changes
-# Time: ~10-15 minutes
+# Install Multipass (Ubuntu/Debian)
+brew install multipass
+
+# Install Lima (AlmaLinux)
+brew install lima
+
+# Verify installations
+multipass version
+limactl list
 ```
 
 **Manual Fixture Generation (if automation fails):**
+
+**For Debian (Multipass):**
 ```bash
-# Example: Ubuntu 20.04
-multipass launch focal --name atop-focal --memory 1G --disk 5G
+# Example: Debian 12
+multipass launch debian:12 --name mp-atop-debian12 --memory 2G --disk 5G --cpus 2
 
 # Wait for VM to be ready (check with)
-multipass exec atop-focal -- echo "ready" || sleep 5
+multipass exec mp-atop-debian12 -- echo "ready" || sleep 5
 
 # Update package lists
-multipass exec atop-focal -- sudo apt-get update -qq
+multipass exec mp-atop-debian12 -- sudo apt-get update -qq
 
 # Install atop (includes automatic version detection)
-multipass exec atop-focal -- sudo apt-get install -y -qq atop
+multipass exec mp-atop-debian12 -- sudo apt-get install -y -qq atop
 
 # Verify version before capture
-multipass exec atop-focal -- atop -V
-# Expected: Version 2.4.0 for Ubuntu 20.04
+multipass exec mp-atop-debian12 -- atop -V
+# Expected: Version 2.8.1 for Debian 12
 
 # Capture 15-second snapshot (MUST run as root)
-multipass exec atop-focal -- sudo atop -w /tmp/fixture.raw 15 1
+multipass exec mp-atop-debian12 -- sudo atop -w /tmp/fixture.raw 15 1
 # Note: -w writes binary, 15 = sample interval (seconds), 1 = iteration count
 # Total capture time: 15 seconds
 
 # Verify fixture exists and has reasonable size
-multipass exec atop-focal -- ls -lh /tmp/fixture.raw
+multipass exec mp-atop-debian12 -- ls -lh /tmp/fixture.raw
 # Expected: 5-20KB for idle VM, 50-500KB for loaded system
 
 # Transfer to host
-multipass transfer atop-focal:/tmp/fixture.raw ./tests/fixtures/v2.4.0-ubuntu20.04.raw
+multipass transfer mp-atop-debian12:/tmp/fixture.raw ./tests/fixtures/v2.8.1-debian12.raw
 
 # Verify transfer succeeded
-ls -lh ./tests/fixtures/v2.4.0-ubuntu20.04.raw
+ls -lh ./tests/fixtures/v2.8.1-debian12.raw
 
-# Cleanup VM
-multipass delete atop-focal --purge
+# Cleanup VM (or keep for reuse)
+multipass delete mp-atop-debian12 --purge
 ```
 
-**Troubleshooting Multipass Issues:**
-- **VM launch timeout:** Increase memory to 2G, some mirrors are slow
+**For AlmaLinux (Lima):**
+```bash
+# Example: AlmaLinux 9
+limactl start --name lima-atop-alma9 ./tests/lima-templates/almalinux-9.yaml
+
+# Wait for VM readiness
+sleep 10
+
+# Install EPEL (required for atop)
+limactl shell lima-atop-alma9 sudo dnf install -y epel-release
+
+# Install atop
+limactl shell lima-atop-alma9 sudo dnf install -y atop
+
+# Verify version
+limactl shell lima-atop-alma9 atop -V
+# Expected: Version 2.7.1 for AlmaLinux 9
+
+# Capture 15-second snapshot
+limactl shell lima-atop-alma9 sudo atop -w /tmp/fixture.raw 15 1
+
+# Copy to shared mount
+limactl shell lima-atop-alma9 sudo cp /tmp/fixture.raw /tmp/lima/fixture.raw
+limactl shell lima-atop-alma9 sudo chmod 644 /tmp/lima/fixture.raw
+
+# Transfer to host (Lima shares home directory)
+cp ~/.lima/lima-atop-alma9/tmp/lima/fixture.raw ./tests/fixtures/v2.7.1-almalinux9.raw
+
+# Verify transfer
+ls -lh ./tests/fixtures/v2.7.1-almalinux9.raw
+
+# Cleanup VM
+limactl delete --force lima-atop-alma9
+```
+
+**Troubleshooting VM Issues:**
+- **Multipass launch timeout:** Increase retry timeout or check internet connection
+- **Lima EPEL fails:** Retry manually (mirrors can be flaky), script has 3-attempt retry
 - **SSH not ready:** Add `sleep 10` after launch, before first exec
-- **APT update fails:** Check internet connection, try different Ubuntu mirror
-- **atop install fails:** VM may need `apt-get upgrade` first
-- **Transfer fails:** Check disk space on host, fixture may be large
-- **Empty fixture:** atop needs root, VM needs activity (try: `stress-ng --cpu 2 --timeout 30s &`)
+- **Transfer fails:** Check disk space on host, verify fixture exists in VM
+- **Empty fixture:** atop needs root, ensure VM has process activity
+- **OOM during dnf install:** Increase VM memory to 2GB (already default)
 
 **Supported Versions:**
-| Ubuntu | Codename | atop Version | Container ID | Fixture File |
-|--------|----------|--------------|--------------|--------------|
-| 18.04  | bionic   | 2.3.0        | ❌ Never     | v2.3.0-ubuntu18.04.raw |
-| 20.04  | focal    | 2.4.0        | ❌ Never     | v2.4.0-ubuntu20.04.raw |
-| 22.04  | jammy    | 2.7.1        | ✅ Available | v2.7.1-ubuntu22.04.raw |
-| 24.04  | noble    | 2.10.0       | ✅ Available | v2.10.0-ubuntu24.04.raw |
+| OS Family | Version | Codename | atop Version | Container ID | Fixture File |
+|-----------|---------|----------|--------------|--------------|--------------|
+| Ubuntu | 18.04 | bionic | 2.3.0 | ❌ Never | v2.3.0-ubuntu18.04.raw |
+| Ubuntu | 20.04 | focal | 2.4.0 | ❌ Never | v2.4.0-ubuntu20.04.raw |
+| Ubuntu | 22.04 | jammy | 2.7.1 | ✅ Available | v2.7.1-ubuntu22.04.raw |
+| Ubuntu | 24.04 | noble | 2.10.0 | ✅ Available | v2.10.0-ubuntu24.04.raw |
+| Debian | 10 | buster | 2.4.0 | ❌ Never | v2.4.0-debian10.raw |
+| Debian | 11 | bullseye | 2.6.0 | ⚠️ Partial | v2.6.0-debian11.raw |
+| Debian | 12 | bookworm | 2.8.1 | ✅ Available | v2.8.1-debian12.raw |
+| Debian | 13 | trixie | 2.11.1 | ✅ Available | v2.11.1-debian13.raw |
+| AlmaLinux | 8 | - | 2.7.1 | ✅ Available | v2.7.1-almalinux8.raw |
+| AlmaLinux | 9 | - | 2.7.1 | ✅ Available | v2.7.1-almalinux9.raw |
 
 **Important Notes:**
-- Ubuntu 22.04+ use version numbers (`22.04`) not codenames (`jammy`) in Multipass
+- Ubuntu/Debian 22.04+ use version numbers (not codenames) in Multipass
+- AlmaLinux uses Lima YAML templates (not Multipass images)
 - atop 2.7.1+ includes Container ID field (Field 17 in PRG label)
 - Fixtures are binary format - use `atop -r` to convert to text
 - Each fixture contains 15 samples (1 per second) from idle VM
 - Fixture size varies: 5-20KB idle, 50-500KB under load, 1-5MB on busy production servers
+- Debian 12/13 are **critical** - they test untested atop versions 2.8.1 and 2.11.1
 
 ### Container ID Support Details
 
@@ -264,7 +330,7 @@ docker stop test-nginx && docker rm test-nginx
 After generating fixtures, validate with Docker:
 
 ```bash
-# Test all versions
+# Test all versions (10 OS distributions)
 docker-compose up --abort-on-container-exit
 
 # Test single version
@@ -272,6 +338,12 @@ docker-compose run --rm test-bionic   # Ubuntu 18.04
 docker-compose run --rm test-focal    # Ubuntu 20.04
 docker-compose run --rm test-jammy    # Ubuntu 22.04
 docker-compose run --rm test-noble    # Ubuntu 24.04
+docker-compose run --rm test-debian10 # Debian 10
+docker-compose run --rm test-debian11 # Debian 11
+docker-compose run --rm test-debian12 # Debian 12 (CRITICAL - atop 2.8.1)
+docker-compose run --rm test-debian13 # Debian 13 (LATEST - atop 2.11.1)
+docker-compose run --rm test-alma8    # AlmaLinux 8
+docker-compose run --rm test-alma9    # AlmaLinux 9
 ```
 
 **Test Coverage per Version:**
@@ -281,6 +353,7 @@ docker-compose run --rm test-noble    # Ubuntu 24.04
 - Verbose mode execution
 - Dynamic header detection
 - Version fallback mechanism
+- OS-specific package management (apt vs dnf+EPEL)
 
 ## Common Development Tasks
 
@@ -315,6 +388,10 @@ docker-compose run --rm test-bionic   # Test v2.3.0
 docker-compose run --rm test-focal    # Test v2.4.0
 docker-compose run --rm test-jammy    # Test v2.7.1 (with Container ID)
 docker-compose run --rm test-noble    # Test v2.10.0
+docker-compose run --rm test-debian12 # Test v2.8.1 (CRITICAL)
+docker-compose run --rm test-debian13 # Test v2.11.1 (LATEST)
+docker-compose run --rm test-alma8    # Test AlmaLinux 8
+docker-compose run --rm test-alma9    # Test AlmaLinux 9
 
 # 6. Regenerate fixtures if AWK parsing logic changed
 ./tests/generate-all-fixtures.sh
@@ -328,8 +405,12 @@ sudo atop -P PRG,PRC,PRM,PRD,DSK 1 15 > /tmp/live.txt
 **Version-Specific Testing Notes:**
 - v2.3.0 (Ubuntu 18.04): No Container ID, tests null handling
 - v2.4.0 (Ubuntu 20.04): Transition version, no major field changes
+- v2.6.0 (Debian 11): Version gap test, partial Container ID support
 - v2.7.1 (Ubuntu 22.04): Container ID field added (Field 17), tests CID extraction
+- v2.8.1 (Debian 12): **CRITICAL** - Untested version, validates dynamic detection
 - v2.10.0 (Ubuntu 24.04): Latest format, most comprehensive test
+- v2.11.1 (Debian 13): **LATEST** - Future-proofing test, bleeding edge
+- v2.7.1 (AlmaLinux): RHEL family validation, dnf + EPEL testing
 
 ### Modifying AWK Processing
 The `parse_atop_output()` function (lines 287-576) processes atop's structured output using the **Parseable (-P) format**, which is space-delimited and position-dependent.
