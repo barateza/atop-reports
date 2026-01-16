@@ -63,7 +63,7 @@ echo "    ✓ Generated $LINE_COUNT lines of parseable output"
 echo "[5/5] Running tests..."
 echo ""
 echo "  [Test 1/3] Text output format..."
-TEXT_OUTPUT=$(cat "$TEMP_PARSEABLE" | /app/atop-reports.sh --file /dev/stdin 2>&1)
+TEXT_OUTPUT=$(/app/atop-reports.sh --file "$TEMP_PARSEABLE" 2>&1)
 if echo "$TEXT_OUTPUT" | grep -q "TOP RESOURCE OFFENDERS"; then
     echo "    ✓ Text output generated successfully"
 else
@@ -75,7 +75,7 @@ fi
 # Test 2: JSON output schema
 echo ""
 echo "  [Test 2/3] JSON output schema validation..."
-JSON_OUTPUT=$(cat "$TEMP_PARSEABLE" | /app/atop-reports.sh --file /dev/stdin --json 2>&1)
+JSON_OUTPUT=$(/app/atop-reports.sh --file "$TEMP_PARSEABLE" --json 2>/dev/null)
 
 # Check if valid JSON
 if echo "$JSON_OUTPUT" | jq empty 2>/dev/null; then
@@ -124,7 +124,7 @@ fi
 # Test 3: Verbose mode
 echo ""
 echo "  [Test 3/3] Verbose mode (container ID display)..."
-VERBOSE_OUTPUT=$(cat "$TEMP_PARSEABLE" | /app/atop-reports.sh --file /dev/stdin --verbose 2>&1)
+VERBOSE_OUTPUT=$(/app/atop-reports.sh --file "$TEMP_PARSEABLE" --verbose 2>&1)
 if echo "$VERBOSE_OUTPUT" | grep -q "TOP RESOURCE OFFENDERS"; then
     echo "    ✓ Verbose mode executed successfully"
 else
