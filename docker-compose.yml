@@ -1,0 +1,64 @@
+version: '3.8'
+
+# Docker Compose test infrastructure for atop-reports.sh
+# 
+# This setup allows testing the script against multiple atop versions
+# by spinning up Ubuntu containers with different versions installed.
+#
+# Usage:
+#   docker-compose run test-bionic  # Test against Ubuntu 18.04 (atop 2.3.0)
+#   docker-compose run test-focal   # Test against Ubuntu 20.04 (atop 2.4.0)
+#   docker-compose run test-jammy   # Test against Ubuntu 22.04 (atop 2.7.1)
+#   docker-compose run test-noble   # Test against Ubuntu 24.04 (atop 2.10.0)
+#
+# Or run all tests:
+#   docker-compose up --abort-on-container-exit
+
+services:
+  test-bionic:
+    image: ubuntu:18.04
+    container_name: atop-test-bionic
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.3.0" "18.04"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  test-focal:
+    image: ubuntu:20.04
+    container_name: atop-test-focal
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.4.0" "20.04"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  test-jammy:
+    image: ubuntu:22.04
+    container_name: atop-test-jammy
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.7.1" "22.04"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  test-noble:
+    image: ubuntu:24.04
+    container_name: atop-test-noble
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.10.0" "24.04"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
