@@ -116,6 +116,41 @@ The `parse_atop_output()` function (lines 287-576) processes atop's structured o
 
 Variables MUST use AWK arrays indexed by PID: `prc_cpu_sum[pid]`, `prm_mem_peak[pid]`
 
+### Website Identification Logic
+The `get_parent_info()` function (lines 642-741) extracts website/vhost details from process command lines:
+
+**PHP-FPM pool detection:**
+```bash
+# Extract from cmdline like: php-fpm: pool www or pool=example.com
+pool=$(echo "$cmdline" | awk -F'pool[= ]' 'NF>1 {print $2}' | awk '{print $1}')
+if [ -z "$pool" ]; then
+    pool=$(echo "$cmdline" | awk -F'php-fpm: pool ' 'NF>1 {print $2}' | awk '{print $1}')
+fi
+```
+
+**Apache vhost detection:**
+```bash
+# Extract from -D flags or .conf file paths
+vhost=$(echo "$cmdline" | awk '/-D.*VHOST/ {for(i=1;i<=NF;i++) if($i ~ /^-D.*VHOST/) print $i}' | head -1)
+if [ -z "$vhost" ]; then
+    vhost=$(echo "$cmdline" | awk -F'-f ' 'NF>1 {print $2}' | awk '{match($0, /\/([^\/]+\.conf)/, a); print a[1]}')
+fi
+```
+
+**Parent process name:**
+```bash
+# Skip systemd/init, only show meaningful parents
+ppid=$(grep '^PPid:' "/proc/$pid/status" 2>/dev/null | awk '{print $2}')
+if [ -n "$ppid" ] && [ "$ppid" -gt 1 ]; then
+    parent_name=$(cat "/proc/$ppid/comm" 2>/dev/null)
+    # Filter out systemd/init
+fi
+```
+
+**Output format:** `[pool: example.com, vhost: site.conf, parent: apache2]`
+
+This information appears in text reports after process names to help identify which website is consuming resources.
+
 ## Error Handling Conventions
 
 ### Validation Pattern (All User Inputs)
@@ -123,13 +158,38 @@ Variables MUST use AWK arrays indexed by PID: `prc_cpu_sum[pid]`, `prm_mem_peak[
 if ! [[ $VALUE =~ ^[0-9]+\.?[0-9]*$ ]] || [ "$VALUE" -lt 0 ]; then
     echo "ERROR: Invalid value: $VALUE" >&2
     exit 1
-fi
+fiCode Quality Standards
+
+### Function Length Limit
+**Hard requirement:** Functions MUST NOT exceed 150 lines for maintainability and readability.
+
+If refactoring a function that exceeds this limit:
+1. Extract logical sections into helper functions
+2. Use clear, descriptive function names
+3. Maintain single responsibility principle
+4. Document helper functions with comments
+
+Example refactoring approach:
+```bash
+# BEFORE: 200-line parse_atop_output() function
+
+# AFTER: Split into logical components
+parse_atop_output() {
+    validate_snapshot_file "$snapshot_file"
+    parse_process_metrics "$snapshot_file"
+    calculate_scores_and_ranks "$temp_dir"
+    format_output "$report_file"
+}
 ```
-See `validate_config()` (lines 104-151) for complete validation logic.
 
-### Graceful Degradation
-Script runs in **LIMITED_MODE** if non-root (lines 193-202). Per-process disk I/O unavailable but continues monitoring CPU/memory. Always check `LIMITED_MODE` flag before processing disk metrics.
-
+### Checklist for All Changes
+1. Preserve ShellCheck cleanliness (zero warnings)
+2. Track all temp resources in CLEANUP arrays
+3. Test both root and non-root execution
+4. Verify trap handlers work with `kill -TERM`
+5. Keep functions under 150 lines
+6. Update IMPLEMENTATION_SUMMARY.md for significant changes
+7
 ### Lock File Protection
 Single-instance enforcement via flock (lines 177-192):
 ```bash
@@ -152,9 +212,36 @@ Schema version 1.0 with metadata envelope (lines 533-575). Breaking changes requ
 - **Memory usage:** ~50-100MB typical, up to 200MB with 10,000+ processes
 - **Alert cooldown:** `COOLDOWN` period prevents log spam during sustained incidents
 
+## Official Deployment Targets
+
+The script is designed for Plesk-supported operating systems with atop installed from official repositories:
+
+### Ubuntu
+- **24.04 LTS (Recommended):** atop 2.10.0
+- **22.04 LTS (incl. ARM):** atop 2.7.1
+- **20.04 LTS:** atop 2.4.0
+- **18.04 LTS:** atop 2.3.0
+
+### AlmaLinux / RHEL / Rocky Linux
+*(Requires EPEL repository)*
+- **AlmaLinux 10.x (Recommended):** atop 2.11.1 (via EPEL 10)
+- **AlmaLinux 9.x / RHEL 9.x / Rocky 8.x:** atop 2.7.1
+- **AlmaLinux 8.x / RHEL 8.x:** atop 2.7.1
+
+### Debian
+- **13 (Testing/Trixie):** atop 2.11.1
+- **12 (Bookworm):** atop 2.8.1
+- **11 (Bullseye):** atop 2.6.0
+- **10 (Buster):** atop 2.4.0
+
+### CloudLinux / CentOS
+- **CloudLinux 9.x / 8.x:** atop 2.7.1
+- **CloudLinux 7.x / CentOS 7.x:** atop 2.7.1
+
+**Minimum version:** 2.3.0 for structured output (`-P` flag support)
+
 ## Known Constraints
 - **Platform:** Linux only (requires `/proc` filesystem)
-- **atop version:** Requires >= 2.3.0 for structured output (`-P` flag)
 - **Kernel config:** CONFIG_TASK_IO_ACCOUNTING needed for per-process disk stats
 - **Root privileges:** Recommended for full metrics; degrades gracefully without
 
