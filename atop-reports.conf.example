@@ -1,0 +1,40 @@
+# Example Configuration File for atop-reports.sh
+# Copy this file to /etc/atop-reports.conf to override default values
+#
+# This file is sourced by the script, so it must contain valid bash syntax.
+# Only set the variables you want to override; unset variables will use
+# the defaults defined in the script.
+
+# Load Average Threshold: Trigger when load exceeds this value
+# Recommended: Set to number of CPU cores (e.g., 4.0 for 4-core system)
+#LOAD_THRESHOLD=4.0
+
+# Memory Usage Threshold: Trigger when memory usage exceeds this percentage
+# Recommended: 80 for production servers, 90 for development
+#MEM_THRESHOLD=80
+
+# I/O Wait Threshold: Trigger when CPU I/O wait exceeds this percentage
+# Recommended: 25 means 25% of CPU time spent waiting for disk I/O
+#IO_WAIT_THRESHOLD=25
+
+# Check Interval: Seconds between metric checks when system is normal
+#CHECK_INTERVAL=10
+
+# Cooldown Period: Seconds to wait after an alert before next check
+# This prevents alert spam during sustained high load
+#COOLDOWN=300
+
+# Log File: Path where alerts and reports will be written
+#LOG_FILE="/var/log/atop-resource-alerts.log"
+
+# Minimum Resource Threshold: Only show processes using more than this percentage
+# of any single resource (CPU, Memory, or Disk)
+#MIN_OFFENDER_THRESHOLD=10
+
+# Example: Override for high-memory server (32GB+)
+# MEM_THRESHOLD=90
+# LOAD_THRESHOLD=8.0
+
+# Example: Override for monitoring more frequently
+# CHECK_INTERVAL=5
+# COOLDOWN=180
