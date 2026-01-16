@@ -104,17 +104,40 @@ PID=$!
 sleep 5
 sudo kill -TERM $PID
 ls /run/lock/atop-reports.lock  # Should NOT exist
+
+# Test across different atop versions (if available)
+atop -V  # Check version
+# v2.3.0: No Container ID, no avio field
+# v2.7.1+: Container ID present, avio pre-calculated
 ```
 
 ### Modifying AWK Processing
-The `parse_atop_output()` function (lines 287-576) processes atop's structured output:
-- **PRG:** Process general info (PID, command name)
-- **PRC:** CPU metrics (user_ticks, sys_ticks)
-- **PRM:** Memory metrics (RSS in KB)
-- **PRD:** Disk I/O metrics (sectors read/written)
-- **DSK:** System-level disk stats
+The `parse_atop_output()` function (lines 287-576) processes atop's structured output using the **Parseable (-P) format**, which is space-delimited and position-dependent.
 
-Variables MUST use AWK arrays indexed by PID: `prc_cpu_sum[pid]`, `prm_mem_peak[pid]`
+**Structured Output Format Used:**
+```bash
+atop -P PRG,PRC,PRM,PRD,DSK 1 15
+```
+
+**Label Types and Field Positions:**
+- **PRG (Process General):** Fields 7=PID, 8=CommandName, 9-15=metadata
+  - Field 17+ (Container ID) only available in atop 2.7+
+- **PRC (CPU metrics):** Fields 7=PID, 11=user_ticks, 12=sys_ticks
+  - Total CPU ticks = user_ticks + sys_ticks
+- **PRM (Memory metrics):** Fields 7=PID, 11=RSS (KB)
+  - Direct mapping to resident memory
+- **PRD (Disk I/O):** Fields 7=PID, 12=sectors_read, 14=sectors_write
+  - Convert sectors to KB: sectors × 0.5 (512 bytes/sector)
+- **DSK (System disk):** Fields 9=sectors_read, 11=sectors_write
+  - System-level aggregation for unattributed I/O
+
+**Critical Parsing Rules:**
+1. **Position-Dependent:** Field meaning determined by index, not labels
+2. **Version-Sensitive:** Field positions shift between atop versions
+   - atop 2.3.0 (Ubuntu 18.04): 17 CPU fields
+   - atop 2.4.0+ (Ubuntu 20.04+): 21 CPU fields (added frequency/IPC)
+3. **AWK Arrays:** MUST use PID as index: `prc_cpu_sum[pid]`, `prm_mem_peak[pid]`
+4. **Sample Counting:** Track samples via `/^SEP/` delimiter to calculate averages
 
 ### Website Identification Logic
 The `get_parent_info()` function (lines 642-741) extracts website/vhost details from process command lines:
@@ -222,10 +245,92 @@ The script is designed for Plesk-supported operating systems with atop installed
 - **20.04 LTS:** atop 2.4.0
 - **18.04 LTS:** atop 2.3.0
 
-### AlmaLinux / RHEL / Rocky Linux
-*(Requires EPEL repository)*
-- **AlmaLinux 10.x (Recommended):** atop 2.11.1 (via EPEL 10)
-- **AlmaLinux 9.x / RHEL 9.x / Rocky 8.x:** atop 2.7.1
+###Atop Parseable Output Architecture
+
+### Format Characteristics
+This script uses atop's **Parseable (-P) output**, a legacy format that is:
+- **Space-delimited:** Fields separated by single spaces
+- **Position-dependent:** Field meaning determined by ordinal position (brittle)
+- **Universally supported:** Available in all versions from 2.3.0 to 2.11.1
+- **Non-JSON:** Predates JSON output (introduced in atop 2.6.0)
+
+### Version-Specific Field Mapping
+
+**Header Structure (Always Fields 1-6):**
+```
+Label Host Epoch Date Time Interval
+```
+
+**PRG Label Evolution:**
+- **v2.3.0-2.6.x:** 16 fields (no Container ID)
+- *Compatibility Notes for Future Development
+
+### Atop Output Format Migration
+If migrating from Parseable (-P) to JSON (-J) output:
+- **Pros:** Schema resilience, type safety, nested data structures
+- **Cons:** Not available in Ubuntu 18.04/20.04 (atop < 2.6.0)
+- **Current choice:** Parseable format ensures compatibility across all supported OS versions
+
+### Field Position Awareness
+When modifying AWK parsing logic:
+1. **Never assume field count:** Different atop versions have different field counts
+2. **Use explicit field numbers:** Comment with version compatibility
+   ```awk
+   # Field 7 = PID (stable across all versions)
+   # Field 17 = Container ID (only v2.7.1+, may be empty)
+   ```
+3. **Test on minimum version:** Ubuntu 18.04 (atop 2.3.0) is the compatibility baseline
+4. **Document version-specific features:** If using Container ID, note it requires v2.7.1+
+
+### Breaking Change Detection
+If atop parsing fails unexpectedly:
+```bash
+# Capture raw output for debugging
+atop -P PRG,PRC,PRM,PRD,DSK 1 2 > debug-snapshot.txt
+# Count fields manually
+awk '/^PRG/ {print NF; exit}' debug-snapshot.txt  # Should be 16 (v2.3) or 17+ (v2.7+)
+```
+
+## When Modifying This Script
+1. Preserve ShellCheck cleanliness (zero warnings)
+2. Track all temp resources in CLEANUP arrays
+3. Test both root and non-root execution
+4. Verify trap handlers work with `kill -TERM`
+5. Keep functions under 150 lines
+6. Update IMPLEMENTATION_SUMMARY.md for significant changes
+7. Test replay mode after parsing changes
+8. **Verify on minimum atop version (2.3.0)** if changing AWK field position
+- **v2.3.0-2.6.x:** No `avio` field (avg I/O time) - must calculate manually
+- **v2.7.1+:** Field 14 = `avio` in microseconds (pre-calculated)
+
+### Parsing Robustness Strategy
+
+**Command Name Handling (PRG Field 8):**
+```bash
+# PROBLEM: Command names can contain spaces (e.g., "python script.py")
+# SOLUTION: atop wraps in parentheses but spaces break naive split()
+# This script aggregates by command name, so spaces are preserved in AWK
+```
+
+**Sector-to-KB Conversion (PRD/DSK):**
+```bash
+# Linux reports disk I/O in 512-byte sectors
+kb_read = sectors_read * 0.5
+kb_write = sectors_write * 0.5
+```
+
+**Clock Ticks to CPU Percentage:**
+```bash
+# CPU usage reported in clock ticks (jiffies)
+# CLK_TCK = ticks per second (typically 100, validated at startup)
+cpu_percent = (total_ticks / CLK_TCK) * 100
+```
+
+### Known Constraints
+- **Platform:** Linux only (requires `/proc` filesystem)
+- **Kernel config:** CONFIG_TASK_IO_ACCOUNTING needed for per-process disk stats
+- **Root privileges:** Recommended for full metrics; degrades gracefully without
+- **Format Fragility:** Adding fields to atop output breaks position-based parsers
 - **AlmaLinux 8.x / RHEL 8.x:** atop 2.7.1
 
 ### Debian
