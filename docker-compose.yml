@@ -2,19 +2,31 @@ version: '3.8'
 
 # Docker Compose test infrastructure for atop-reports.sh
 # 
-# This setup allows testing the script against multiple atop versions
-# by spinning up Ubuntu containers with different versions installed.
+# This setup allows testing the script against multiple OS distributions
+# and atop versions by spinning up containers for Ubuntu, Debian, and AlmaLinux.
 #
 # Usage:
+#   # Ubuntu
 #   docker-compose run test-bionic  # Test against Ubuntu 18.04 (atop 2.3.0)
 #   docker-compose run test-focal   # Test against Ubuntu 20.04 (atop 2.4.0)
 #   docker-compose run test-jammy   # Test against Ubuntu 22.04 (atop 2.7.1)
 #   docker-compose run test-noble   # Test against Ubuntu 24.04 (atop 2.10.0)
 #
+#   # Debian
+#   docker-compose run test-debian10  # Test against Debian 10 (atop 2.4.0)
+#   docker-compose run test-debian11  # Test against Debian 11 (atop 2.6.0)
+#   docker-compose run test-debian12  # Test against Debian 12 (atop 2.8.1)
+#   docker-compose run test-debian13  # Test against Debian 13 (atop 2.11.1)
+#
+#   # AlmaLinux
+#   docker-compose run test-alma8   # Test against AlmaLinux 8 (atop 2.7.1)
+#   docker-compose run test-alma9   # Test against AlmaLinux 9 (atop 2.7.1)
+#
 # Or run all tests:
 #   docker-compose up --abort-on-container-exit
 
 services:
+  # ==================== Ubuntu Services ====================
   test-bionic:
     image: ubuntu:18.04
     container_name: atop-test-bionic
@@ -22,7 +34,7 @@ services:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.3.0" "18.04"
+    command: /tests/run-test.sh "2.3.0" "18.04" "ubuntu"
     environment:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
@@ -34,7 +46,7 @@ services:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.4.0" "20.04"
+    command: /tests/run-test.sh "2.4.0" "20.04" "ubuntu"
     environment:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
@@ -46,7 +58,7 @@ services:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.7.1" "22.04"
+    command: /tests/run-test.sh "2.7.1" "22.04" "ubuntu"
     environment:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
@@ -58,7 +70,79 @@ services:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.10.0" "24.04"
+    command: /tests/run-test.sh "2.10.0" "24.04" "ubuntu"
     environment:
       - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  # ==================== Debian Services ====================
+  test-debian10:
+    image: debian:10
+    container_name: atop-test-debian10
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.4.0" "10" "debian"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  test-debian11:
+    image: debian:11
+    container_name: atop-test-debian11
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.6.0" "11" "debian"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  test-debian12:
+    image: debian:12
+    container_name: atop-test-debian12
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.8.1" "12" "debian"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  test-debian13:
+    image: debian:13
+    container_name: atop-test-debian13
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.11.1" "13" "debian"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  # ==================== AlmaLinux Services ====================
+  test-alma8:
+    image: almalinux:8
+    container_name: atop-test-alma8
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.7.1" "8" "almalinux"
+    environment:
+      - TZ=UTC
+
+  test-alma9:
+    image: almalinux:9
+    container_name: atop-test-alma9
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.7.1" "9" "almalinux"
+    environment:
       - TZ=UTC
