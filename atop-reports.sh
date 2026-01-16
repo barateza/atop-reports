@@ -10,7 +10,7 @@
 # Requirements : bash 3.x, atop >= 2.3.0, GNU coreutils, Linux kernel with
 #                process accounting (CONFIG_TASK_IO_ACCOUNTING), root access
 #                recommended for full disk I/O metrics
-# Version      : 1.1
+# Version      : 2.0.0
 #########
 
 #==============================================================================
@@ -19,6 +19,7 @@
 
 REPLAY_FILE=""
 OUTPUT_FORMAT="text"  # text or json
+VERBOSE_MODE=0  # Show container IDs in text output
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -30,11 +31,16 @@ while [[ $# -gt 0 ]]; do
             OUTPUT_FORMAT="json"
             shift
             ;;
+        --verbose|-v)
+            VERBOSE_MODE=1
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
             echo "  --file <snapshot>   Replay/analyze existing atop snapshot file"
             echo "  --json              Output in JSON format instead of text"
+            echo "  --verbose, -v       Show container IDs in text output"
             echo "  --help              Show this help message"
             exit 0
             ;;
@@ -251,6 +257,30 @@ if [ -z "$ATOP_VERSION" ]; then
     echo "WARNING: Could not detect atop version. Proceeding anyway..." >&2
 fi
 
+# Version-based fallback maps for field positions (used when dynamic detection fails)
+# These maps define stable field positions for major atop versions
+# Format: PRG_PID=7 means PID is at field index 7 in PRG label lines
+FIELD_MAP_V23="PRG_PID=7 PRG_CMD=8 PRC_PID=7 PRC_USER=11 PRC_SYS=12 PRM_PID=7 PRM_RSS=11 PRD_PID=7 PRD_SECTORS_READ=12 PRD_SECTORS_WRITE=14 DSK_SECTORS_READ=9 DSK_SECTORS_WRITE=11"
+FIELD_MAP_V24="PRG_PID=7 PRG_CMD=8 PRC_PID=7 PRC_USER=11 PRC_SYS=12 PRM_PID=7 PRM_RSS=11 PRD_PID=7 PRD_SECTORS_READ=12 PRD_SECTORS_WRITE=14 DSK_SECTORS_READ=9 DSK_SECTORS_WRITE=11"
+FIELD_MAP_V27="PRG_PID=7 PRG_CMD=8 PRG_CID=17 PRC_PID=7 PRC_USER=11 PRC_SYS=12 PRM_PID=7 PRM_RSS=11 PRD_PID=7 PRD_SECTORS_READ=12 PRD_SECTORS_WRITE=14 DSK_SECTORS_READ=9 DSK_SECTORS_WRITE=11"
+
+# Select appropriate field map based on detected version
+FIELD_MAP="$FIELD_MAP_V23"  # Default to oldest supported version
+if [ -n "$ATOP_VERSION" ]; then
+    VERSION_MAJOR=$(echo "$ATOP_VERSION" | cut -d. -f1)
+    VERSION_MINOR=$(echo "$ATOP_VERSION" | cut -d. -f2)
+    
+    if [ "$VERSION_MAJOR" -eq 2 ]; then
+        if [ "$VERSION_MINOR" -ge 7 ]; then
+            FIELD_MAP="$FIELD_MAP_V27"
+        elif [ "$VERSION_MINOR" -ge 4 ]; then
+            FIELD_MAP="$FIELD_MAP_V24"
+        fi
+    elif [ "$VERSION_MAJOR" -gt 2 ]; then
+        FIELD_MAP="$FIELD_MAP_V27"  # Assume future versions follow v2.7+ structure
+    fi
+fi
+
 # Test log file writeability
 if ! touch "$LOG_FILE" 2>/dev/null; then
     echo "ERROR: Cannot write to log file: $LOG_FILE" >&2
@@ -325,15 +355,39 @@ parse_atop_output() {
     chmod 700 "$temp_dir"
     CLEANUP_DIRS+=("$temp_dir")
     
-    # Parse structured output with awk
+    # Parse structured output with awk - version-agnostic dynamic header detection
     awk -v clk_tck="$CLK_TCK" -v total_mem="$TOTAL_MEM_KB" -v limited="$LIMITED_MODE" \
-        -v min_thresh="$MIN_OFFENDER_THRESHOLD" -v temp_dir="$temp_dir" '
+        -v min_thresh="$MIN_OFFENDER_THRESHOLD" -v temp_dir="$temp_dir" \
+        -v field_map="$FIELD_MAP" -v is_tty="$( [ -t 1 ] && echo 1 || echo 0 )" '
     BEGIN {
         sample_count = 0
         max_disk_read = 0
         max_disk_write = 0
         system_disk_read = 0
         system_disk_write = 0
+        header_detected = 0
+        fallback_used = 0
+        
+        # Parse fallback field map into associative array
+        n = split(field_map, pairs, " ")
+        for (i = 1; i <= n; i++) {
+            split(pairs[i], kv, "=")
+            fallback_map[kv[1]] = kv[2]
+        }
+    }
+    
+    # Dynamic Column Mapping: Parse header lines to learn field positions
+    # Header lines contain field names (e.g., "PRG host epoch date time interval pid ppid ...")
+    # Data lines contain only values
+    $1 ~ /^(PRG|PRC|PRM|PRD|DSK)$/ && NF > 10 && $7 !~ /^[0-9]+$/ {
+        # This is a header line (field 7 is not numeric)
+        type = $1
+        for (i = 1; i <= NF; i++) {
+            # Store field position by name
+            col_map[type, toupper($i)] = i
+        }
+        header_detected = 1
+        next
     }
     
     # Track samples
@@ -343,19 +397,62 @@ parse_atop_output() {
     }
     
     # Parse PRG (General process info)
-    /^PRG/ {
-        pid = $7
-        cmd_name = $8
-        # Store command name for this PID
+    # Fields: PID (stable v2.3.0+), Command Name (stable v2.3.0+), CID (v2.7.1+ only)
+    /^PRG/ && $7 ~ /^[0-9]+$/ {
+        # Get field positions (dynamic or fallback)
+        if ((type, "PID") in col_map) {
+            pid_col = col_map["PRG", "PID"]
+            cmd_col = col_map["PRG", "NAME"]
+            if (!cmd_col) cmd_col = col_map["PRG", "CMD"]
+            if (!cmd_col) cmd_col = col_map["PRG", "COMMAND"]
+            cid_col = col_map["PRG", "CID"]
+            if (!cid_col) cid_col = col_map["PRG", "CONTAINER"]
+        } else {
+            # Fallback to version-based map
+            if (!fallback_used && is_tty == 1) {
+                print "⚠️  Dynamic header detection failed, using legacy field map" > "/dev/stderr"
+                fallback_used = 1
+            }
+            pid_col = fallback_map["PRG_PID"]
+            cmd_col = fallback_map["PRG_CMD"]
+            cid_col = fallback_map["PRG_CID"]
+            if (!pid_col) pid_col = 7  # Ultimate fallback
+            if (!cmd_col) cmd_col = 8
+        }
+        
+        pid = $(pid_col)
+        cmd_name = $(cmd_col)
+        container_id = (cid_col && cid_col <= NF) ? $(cid_col) : ""
+        
+        # Store command name and container ID for this PID
         prg_cmd[pid] = cmd_name
+        if (container_id != "" && container_id != "-") {
+            prg_cid[pid] = container_id
+        }
         next
     }
     
     # Parse PRC (CPU metrics)
-    /^PRC/ {
-        pid = $7
-        user_ticks = $11
-        sys_ticks = $12
+    # Fields: PID (stable), User Ticks (stable), System Ticks (stable)
+    /^PRC/ && $7 ~ /^[0-9]+$/ {
+        if (("PRC", "PID") in col_map) {
+            pid_col = col_map["PRC", "PID"]
+            user_col = col_map["PRC", "UTIME"]
+            if (!user_col) user_col = col_map["PRC", "USR"]
+            sys_col = col_map["PRC", "STIME"]
+            if (!sys_col) sys_col = col_map["PRC", "SYS"]
+        } else {
+            pid_col = fallback_map["PRC_PID"]
+            user_col = fallback_map["PRC_USER"]
+            sys_col = fallback_map["PRC_SYS"]
+            if (!pid_col) pid_col = 7
+            if (!user_col) user_col = 11
+            if (!sys_col) sys_col = 12
+        }
+        
+        pid = $(pid_col)
+        user_ticks = $(user_col)
+        sys_ticks = $(sys_col)
         total_ticks = user_ticks + sys_ticks
         
         # Accumulate for average
@@ -370,9 +467,21 @@ parse_atop_output() {
     }
     
     # Parse PRM (Memory metrics)
-    /^PRM/ {
-        pid = $7
-        res_mem_kb = $11
+    # Fields: PID (stable), RSS Memory (stable)
+    /^PRM/ && $7 ~ /^[0-9]+$/ {
+        if (("PRM", "PID") in col_map) {
+            pid_col = col_map["PRM", "PID"]
+            rss_col = col_map["PRM", "RMEM"]
+            if (!rss_col) rss_col = col_map["PRM", "RSS"]
+        } else {
+            pid_col = fallback_map["PRM_PID"]
+            rss_col = fallback_map["PRM_RSS"]
+            if (!pid_col) pid_col = 7
+            if (!rss_col) rss_col = 11
+        }
+        
+        pid = $(pid_col)
+        res_mem_kb = $(rss_col)
         
         # Accumulate for average
         prm_mem_sum[pid] += res_mem_kb
@@ -386,12 +495,28 @@ parse_atop_output() {
     }
     
     # Parse PRD (Disk I/O metrics) - only if not in limited mode
-    /^PRD/ {
+    # Fields: PID (stable), Sectors Read (stable), Sectors Write (stable)
+    /^PRD/ && $7 ~ /^[0-9]+$/ {
         if (limited == 1) next
         
-        pid = $7
-        sectors_read = $12
-        sectors_write = $14
+        if (("PRD", "PID") in col_map) {
+            pid_col = col_map["PRD", "PID"]
+            read_col = col_map["PRD", "RDDSK"]
+            if (!read_col) read_col = col_map["PRD", "READ"]
+            write_col = col_map["PRD", "WRDSK"]
+            if (!write_col) write_col = col_map["PRD", "WRITE"]
+        } else {
+            pid_col = fallback_map["PRD_PID"]
+            read_col = fallback_map["PRD_SECTORS_READ"]
+            write_col = fallback_map["PRD_SECTORS_WRITE"]
+            if (!pid_col) pid_col = 7
+            if (!read_col) read_col = 12
+            if (!write_col) write_col = 14
+        }
+        
+        pid = $(pid_col)
+        sectors_read = $(read_col)
+        sectors_write = $(write_col)
         
         # Convert sectors to KB (512 bytes per sector)
         kb_read = sectors_read * 0.5
@@ -418,10 +543,22 @@ parse_atop_output() {
     }
     
     # Parse DSK (System-level disk metrics)
-    /^DSK/ {
-        # Fields: label host epoch date time interval diskname reads sectors_read writes sectors_write ...
-        sectors_read = $9
-        sectors_write = $11
+    # Fields: Sectors Read (stable v2.3.0+), Sectors Write (stable v2.3.0+)
+    /^DSK/ && $7 !~ /^[0-9]+$/ {
+        if (("DSK", "READ") in col_map) {
+            read_col = col_map["DSK", "READ"]
+            if (!read_col) read_col = col_map["DSK", "RDDSK"]
+            write_col = col_map["DSK", "WRITE"]
+            if (!write_col) write_col = col_map["DSK", "WRDSK"]
+        } else {
+            read_col = fallback_map["DSK_SECTORS_READ"]
+            write_col = fallback_map["DSK_SECTORS_WRITE"]
+            if (!read_col) read_col = 9
+            if (!write_col) write_col = 11
+        }
+        
+        sectors_read = $(read_col)
+        sectors_write = $(write_col)
         
         # Convert sectors to MB
         mb_read = (sectors_read * 0.5) / 1024
@@ -459,9 +596,13 @@ parse_atop_output() {
                 agg_disk_avail[cmd] = 1
             }
             
-            # Store PIDs for this command (for parent resolution)
+            # Store PIDs and Container IDs for this command
             if (agg_pids[cmd] == "") {
                 agg_pids[cmd] = pid
+            }
+            # Track container ID (use first non-empty CID found)
+            if (prg_cid[pid] != "" && agg_cid[cmd] == "") {
+                agg_cid[cmd] = prg_cid[pid]
             }
         }
         
@@ -532,9 +673,12 @@ parse_atop_output() {
             
             combined_score = (avg_score + peak_score) / 2
             
-            # Output for sorting
-            printf "%s|%.1f|%.1f|%.2f|%.1f|%.2f|%.1f|%d|%.1f|%.2f|%.1f|%s|%s\n", \
-                cmd, avg_cpu_pct, avg_mem_gb, avg_mem_pct, avg_disk_total_mbs, avg_disk_pct, \
+            # Get container ID (null-safe)
+            cid = (agg_cid[cmd] != "") ? agg_cid[cmd] : "null"
+            
+            # Output for sorting (added CID field)
+            printf "%s|%s|%.1f|%.1f|%.2f|%.1f|%.2f|%.1f|%d|%.1f|%.2f|%.1f|%s|%s\n", \
+                cmd, cid, avg_cpu_pct, avg_mem_gb, avg_mem_pct, avg_disk_total_mbs, avg_disk_pct, \
                 peak_cpu_pct, peak_mem_gb, peak_mem_pct, peak_disk_total_mbs, peak_disk_pct, \
                 score_suffix, combined_score > temp_dir"/scores.txt"
         }
@@ -551,7 +695,7 @@ parse_atop_output() {
     # Check if parsing produced results
     if [ ! -f "$temp_dir/scores.txt" ] || [ ! -s "$temp_dir/scores.txt" ]; then
         if [ "$OUTPUT_FORMAT" = "json" ]; then
-            printf '{"meta":{"schema_version":"1.0","timestamp":"%s","hostname":"%s","mode":"%s"},"data":{"message":"No significant resource offenders detected"}}\n' \
+            printf '{"meta":{"schema_version":"2.0","timestamp":"%s","hostname":"%s","mode":"%s"},"data":{"message":"No significant resource offenders detected"}}\n' \
                 "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(hostname)" "$([ "$LIMITED_MODE" -eq 1 ] && echo limited || echo full)"
         else
             echo "No significant resource offenders detected (all processes below ${MIN_OFFENDER_THRESHOLD}% threshold)" >> "$report_file"
@@ -559,22 +703,30 @@ parse_atop_output() {
         return 0
     fi
     
-    # Sort by combined score and get top 10
-    sort -t'|' -k13 -rn "$temp_dir/scores.txt" | head -10 > "$temp_dir/top10.txt"
+    # Sort by combined score and get top 10 (note: CID is now field 2, combined_score is field 14)
+    sort -t'|' -k14 -rn "$temp_dir/scores.txt" | head -10 > "$temp_dir/top10.txt"
     
     # Output format: JSON or text
     if [ "$OUTPUT_FORMAT" = "json" ]; then
-        # Generate JSON output with metadata envelope
-        printf '{"meta":{"schema_version":"1.0","timestamp":"%s","hostname":"%s","mode":"%s","start_time":"%s","end_time":"%s","duration_seconds":15},"data":{"trigger_reason":"%s","processes":[' \
+        # Generate JSON output with metadata envelope (schema version 2.0)
+        printf '{"meta":{"schema_version":"2.0","timestamp":"%s","hostname":"%s","mode":"%s","start_time":"%s","end_time":"%s","duration_seconds":15},"data":{"trigger_reason":"%s","processes":[' \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(hostname)" "$([ "$LIMITED_MODE" -eq 1 ] && echo limited || echo full)" \
             "$start_time" "$end_time" "${REASON:-manual}"
         
         local first=1
-        while IFS='|' read -r cmd avg_cpu avg_mem_gb avg_mem_pct avg_disk avg_disk_pct \
+        while IFS='|' read -r cmd cid avg_cpu avg_mem_gb avg_mem_pct avg_disk avg_disk_pct \
             peak_cpu peak_mem_gb peak_mem_pct peak_disk peak_disk_pct suffix combined_score; do
             
             [ $first -eq 0 ] && printf ','
             first=0
+            
+            # Format container_id (null-safe - always present)
+            local cid_json
+            if [ "$cid" = "null" ] || [ -z "$cid" ]; then
+                cid_json="null"
+            else
+                cid_json="\"$cid\""
+            fi
             
             # Format disk values (null if N/A)
             local avg_disk_json peak_disk_json avg_disk_pct_json peak_disk_pct_json
@@ -590,8 +742,8 @@ parse_atop_output() {
                 peak_disk_pct_json="$peak_disk_pct"
             fi
             
-            printf '{"process":"%s","avg":{"cpu_percent":%.1f,"memory_gb":%.2f,"memory_percent":%.1f,"disk_mbs":%s,"disk_percent":%s},"peak":{"cpu_percent":%.1f,"memory_gb":%.2f,"memory_percent":%.1f,"disk_mbs":%s,"disk_percent":%s},"score":%.1f}' \
-                "$cmd" "$avg_cpu" "$avg_mem_gb" "$avg_mem_pct" "$avg_disk_json" "$avg_disk_pct_json" \
+            printf '{"process":"%s","container_id":%s,"avg":{"cpu_percent":%.1f,"memory_gb":%.2f,"memory_percent":%.1f,"disk_mbs":%s,"disk_percent":%s},"peak":{"cpu_percent":%.1f,"memory_gb":%.2f,"memory_percent":%.1f,"disk_mbs":%s,"disk_percent":%s},"score":%.1f}' \
+                "$cmd" "$cid_json" "$avg_cpu" "$avg_mem_gb" "$avg_mem_pct" "$avg_disk_json" "$avg_disk_pct_json" \
                 "$peak_cpu" "$peak_mem_gb" "$peak_mem_pct" "$peak_disk_json" "$peak_disk_pct_json" \
                 "$combined_score"
         done < "$temp_dir/top10.txt"
@@ -615,7 +767,7 @@ parse_atop_output() {
         local rank=1
         local has_partial=0
         
-        while IFS='|' read -r cmd avg_cpu avg_mem_gb avg_mem_pct avg_disk avg_disk_pct \
+        while IFS='|' read -r cmd cid avg_cpu avg_mem_gb avg_mem_pct avg_disk avg_disk_pct \
             peak_cpu peak_mem_gb peak_mem_pct peak_disk peak_disk_pct suffix combined_score; do
             
             # Get parent/pool information
@@ -624,7 +776,7 @@ parse_atop_output() {
             sample_pid=$(awk -v cmd="$cmd" '$1 == "PRG" && $8 == cmd {print $7; exit}' "$snapshot_file")
             
             if [ -n "$sample_pid" ] && [ -d "/proc/$sample_pid" ]; then
-                parent_info=$(get_parent_info "$sample_pid")
+                parent_info=$(get_parent_info "$sample_pid" "$cid")
             fi
             
             # Format disk display
@@ -679,6 +831,7 @@ parse_atop_output() {
 # Get parent process information and extract pool/vhost details
 get_parent_info() {
     local pid="$1"
+    local cid="$2"  # Container ID (may be "null" or empty)
     local info_parts=""
     
     # Check if process still exists (race condition protection)
@@ -715,6 +868,15 @@ get_parent_info() {
             else
                 info_parts="vhost: $vhost"
             fi
+        fi
+    fi
+    
+    # Add Container ID if verbose mode is enabled and CID is available
+    if [ "$VERBOSE_MODE" -eq 1 ] && [ -n "$cid" ] && [ "$cid" != "null" ]; then
+        if [ -n "$info_parts" ]; then
+            info_parts="$info_parts, container: $cid"
+        else
+            info_parts="container: $cid"
         fi
     fi
     
