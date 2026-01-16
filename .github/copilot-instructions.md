@@ -77,6 +77,101 @@ grep '^cpu ' /proc/stat  # Sample 2
 # Calculate delta manually
 ```
 
+## Test Fixture Management
+
+### Automated Fixture Generation
+The project uses golden master fixtures for cross-version testing. These fixtures are binary atop snapshots captured from VMs running specific Ubuntu versions.
+
+**Fixture Generation Script:** `tests/generate-all-fixtures.sh`
+
+**Generate all fixtures:**
+```bash
+cd /path/to/atop-reports
+./1. Syntax validation
+bash -n atop-reports.sh
+
+# 2. ShellCheck (must be CLEAN)
+shellcheck atop-reports.sh
+
+# 3. Test replay mode with existing fixture
+atop -r tests/fixtures/v2.3.0-ubuntu18.04.raw -P PRG,PRC,PRM,PRD,DSK > /tmp/test.txt
+./atop-reports.sh --file /tmp/test.txt
+./atop-reports.sh --file /tmp/test.txt --json | jq .
+
+# 4. Test signal handling (verify cleanup)
+sudo ./atop-reports.sh &
+PID=$!
+sleep 5
+sudo kill -TERM $PID
+ls /run/lock/atop-reports.lock  # Should NOT exist
+
+# 5. Run Docker Compose test suite (after code changes)
+docker-compose run --rm test-bionic   # Test v2.3.0
+docker-compose run --rm test-focal    # Test v2.4.0
+docker-compose run --rm test-jammy    # Test v2.7.1 (with Container ID)
+docker-compose run --rm test-noble    # Test v2.10.0
+
+# 6. Regenerate fixtures if AWK parsing logic changed
+./tests/generate-all-fixtures.sh
+docker-compose up --abort-on-container-exit  # Validate all versions
+
+# 7. Test on real system with live data
+sudo atop -P PRG,PRC,PRM,PRD,DSK 1 15 > /tmp/live.txt
+./atop-reports.sh --file /tmp/live.txt --verbose
+```
+
+**Version-Specific Testing Notes:**
+- v2.3.0 (Ubuntu 18.04): No Container ID, tests null handling
+- v2.4.0 (Ubuntu 20.04): Transition version, no major field changes
+- v2.7.1 (Ubuntu 22.04): Container ID field added (Field 17), tests CID extraction
+- v2.10.0 (Ubuntu 24.04): Latest format, most comprehensive test
+**Manual Fixture Generation (if automation fails):**
+```bash
+# Example: Ubuntu 20.04
+multipass launch focal --name atop-focal --memory 1G --disk 5G
+multipass exec atop-focal -- sudo apt-get update -qq
+multipass exec atop-focal -- sudo apt-get install -y -qq atop
+multipass exec atop-focal -- sudo atop -w /tmp/fixture.raw 15 1
+multipass transfer atop-focal:/tmp/fixture.raw ./tests/fixtures/v2.4.0-ubuntu20.04.raw
+multipass delete atop-focal --purge
+```
+
+**Supported Versions:**
+| Ubuntu | Codename | atop Version | Fixture File |
+|--------|----------|--------------|--------------|
+| 18.04  | bionic   | 2.3.0        | v2.3.0-ubuntu18.04.raw |
+| 20.04  | focal    | 2.4.0        | v2.4.0-ubuntu20.04.raw |
+| 22.04  | jammy    | 2.7.1        | v2.7.1-ubuntu22.04.raw |
+| 24.04  | noble    | 2.10.0       | v2.10.0-ubuntu24.04.raw |
+
+**Important Notes:**
+- Ubuntu 22.04+ use version numbers (`22.04`) not codenames (`jammy`) in Multipass
+- atop 2.7.1+ includes Container ID field (Field 17 in PRG label)
+- Fixtures are binary format - use `atop -r` to convert to text
+- Each fixture contains 15 samples (1 per second) from idle VM
+
+### Docker Compose Testing
+After generating fixtures, validate with Docker:
+
+```bash
+# Test all versions
+docker-compose up --abort-on-container-exit
+
+# Test single version
+docker-compose run --rm test-bionic   # Ubuntu 18.04
+docker-compose run --rm test-focal    # Ubuntu 20.04
+docker-compose run --rm test-jammy    # Ubuntu 22.04
+docker-compose run --rm test-noble    # Ubuntu 24.04
+```
+
+**Test Coverage per Version:**
+- Text output format validation
+- JSON schema v2.0 validation
+- Container ID field presence (null-safe)
+- Verbose mode execution
+- Dynamic header detection
+- Version fallback mechanism
+
 ## Common Development Tasks
 
 ### Adding New Metrics
@@ -116,8 +211,11 @@ The `parse_atop_output()` function (lines 287-576) processes atop's structured o
 
 **Structured Output Format Used:**
 ```bash
-atop -P PRG,PRC,PRM,PRD,DSK 1 15
-```
+atoRun Docker Compose tests on all 4 versions
+7. Regenerate fixtures if AWK parsing logic modified
+8. Update IMPLEMENTATION_v2.0.md for breaking changes
+9. Test with both --json and text output formats
+10. Verify verbose mode if modifying Container ID logic``
 
 **Label Types and Field Positions:**
 - **PRG (Process General):** Fields 7=PID, 8=CommandName, 9-15=metadata
