@@ -3,34 +3,52 @@
 # Test Runner for atop-reports.sh
 #
 # This script runs inside Docker containers to test the atop-reports.sh
-# script against golden master fixtures for specific atop versions.
+# script against golden master fixtures for specific OS distributions and
+# atop versions.
 #
-# Usage: ./run-test.sh <atop_version> <ubuntu_version>
-# Example: ./run-test.sh "2.7.1" "22.04"
+# Usage: ./run-test.sh <atop_version> <os_version> <os_family>
+# Example: ./run-test.sh "2.7.1" "22.04" "ubuntu"
+#          ./run-test.sh "2.8.1" "12" "debian"
+#          ./run-test.sh "2.7.1" "8" "almalinux"
 ###############################################################################
 
 set -e
 
 ATOP_VERSION="${1:-2.7.1}"
-UBUNTU_VERSION="${2:-22.04}"
+OS_VERSION="${2:-22.04}"
+OS_FAMILY="${3:-ubuntu}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FIXTURE_FILE="$SCRIPT_DIR/fixtures/v${ATOP_VERSION}-ubuntu${UBUNTU_VERSION}.raw"
+FIXTURE_FILE="$SCRIPT_DIR/fixtures/v${ATOP_VERSION}-${OS_FAMILY}${OS_VERSION}.raw"
 EXPECTED_OUTPUT_DIR="$SCRIPT_DIR/expected"
 
 echo "=========================================="
 echo "ATOP Reports Test Suite"
 echo "=========================================="
-echo "Ubuntu Version: $UBUNTU_VERSION"
+echo "OS Family: $OS_FAMILY"
+echo "OS Version: $OS_VERSION"
 echo "Expected atop: $ATOP_VERSION"
 echo "Fixture: $FIXTURE_FILE"
 echo "=========================================="
 echo ""
 
-# Install dependencies
+# Install dependencies based on OS family
 echo "[1/5] Installing dependencies..."
-apt-get update -qq >/dev/null 2>&1
-apt-get install -y atop jq bc coreutils >/dev/null 2>&1
+case "$OS_FAMILY" in
+    ubuntu|debian)
+        apt-get update -qq >/dev/null 2>&1
+        apt-get install -y atop jq bc coreutils >/dev/null 2>&1
+        ;;
+    almalinux)
+        # Enable EPEL for atop
+        dnf install -y -q epel-release >/dev/null 2>&1 || true
+        dnf install -y -q atop jq bc coreutils >/dev/null 2>&1
+        ;;
+    *)
+        echo "ERROR: Unknown OS family: $OS_FAMILY" >&2
+        exit 1
+        ;;
+esac
 
 # Verify atop version
 echo "[2/5] Verifying atop version..."
@@ -137,5 +155,5 @@ rm -f "$TEMP_PARSEABLE"
 
 echo ""
 echo "=========================================="
-echo "✓ All tests passed for Ubuntu $UBUNTU_VERSION (atop $ATOP_VERSION)"
+echo "✓ All tests passed for $OS_FAMILY $OS_VERSION (atop $ATOP_VERSION)"
 echo "=========================================="

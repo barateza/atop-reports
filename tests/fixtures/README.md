@@ -5,28 +5,51 @@ This directory contains golden master atop raw log files for testing across diff
 ## Files
 
 Generate fixtures using:
+
 ```bash
-../generate-fixtures.sh
+# Generate all fixtures (Ubuntu + Debian + AlmaLinux)
+../generate-all-fixtures.sh
+
+# Generate specific OS family
+../generate-all-fixtures.sh --os debian
+
+# Generate specific version
+../generate-all-fixtures.sh --os debian --version 12
 ```
 
 Expected files:
+
+**Ubuntu (via Multipass):**
 - `v2.3.0-ubuntu18.04.raw` - Ubuntu 18.04 LTS (atop 2.3.0)
 - `v2.4.0-ubuntu20.04.raw` - Ubuntu 20.04 LTS (atop 2.4.0)
 - `v2.7.1-ubuntu22.04.raw` - Ubuntu 22.04 LTS (atop 2.7.1)
 - `v2.10.0-ubuntu24.04.raw` - Ubuntu 24.04 LTS (atop 2.10.0)
 
+**Debian (via Lima):**
+- `v2.4.0-debian10.raw` - Debian 10 Buster (atop 2.4.0)
+- `v2.6.0-debian11.raw` - Debian 11 Bullseye (atop 2.6.0)
+- `v2.8.1-debian12.raw` - Debian 12 Bookworm (atop 2.8.1) **CRITICAL**
+- `v2.11.1-debian13.raw` - Debian 13 Trixie (atop 2.11.1) **LATEST**
+
+**AlmaLinux (via Lima):**
+- `v2.7.1-almalinux8.raw` - AlmaLinux 8 (atop 2.7.1)
+- `v2.7.1-almalinux9.raw` - AlmaLinux 9 (atop 2.7.1)
+
 ## Size
 
-Each fixture is approximately 1-5MB (15 seconds of system data).
+Each fixture is approximately 5-12KB (15 seconds of idle VM data).
+Production servers under load may generate larger fixtures (50-500KB).
 
 ## Format
 
 These are **atop raw binary logs** created with:
+
 ```bash
 atop -w /tmp/fixture.raw 15 1
 ```
 
 To replay:
+
 ```bash
 atop -r v2.7.1-ubuntu22.04.raw -P PRG,PRC,PRM,PRD,DSK 1 15
 ```
@@ -36,6 +59,7 @@ atop -r v2.7.1-ubuntu22.04.raw -P PRG,PRC,PRM,PRD,DSK 1 15
 By default, fixtures are **not tracked** in git (see `.gitignore`).
 
 To track fixtures after generation:
+
 1. Edit `tests/.gitignore`
 2. Comment out: `# fixtures/*.raw`
 3. Commit: `git add tests/fixtures/*.raw`
@@ -43,6 +67,7 @@ To track fixtures after generation:
 ## Regeneration
 
 Only regenerate when:
+
 - Adding support for new OS versions
 - atop package significantly changes output format
 - Testing new features that depend on specific atop data

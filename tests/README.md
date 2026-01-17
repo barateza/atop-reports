@@ -23,10 +23,13 @@ tests/
 ### Prerequisites
 
 **For Fixture Generation (one-time):**
-- Multipass installed: `brew install multipass` (macOS)
-- Internet connection for VM downloads
+
+- **Ubuntu:** Multipass installed: `brew install multipass` (macOS)
+- **Debian/AlmaLinux:** Lima installed: `brew install lima` (macOS)
+- Internet connection for VM downloads (first run: 200-500MB per OS family)
 
 **For Running Tests:**
+
 - Docker and Docker Compose installed
 - Fixture files in `tests/fixtures/` (generated or downloaded)
 
@@ -114,12 +117,14 @@ atop -w /tmp/fixture.raw 15 1
 ```
 
 **Contents:**
+
 - 15 samples @ 1-second intervals (15 seconds total)
 - System-level metrics (CPU, Memory, Disk, Network)
 - Process-level metrics (PID, CPU, Memory, Disk I/O)
 - Container IDs (atop 2.7.1+ only)
 
 **Why Binary?**
+
 - Preserves exact atop version behavior
 - No precision loss from text conversion
 - Can be replayed with native atop on different systems
@@ -165,6 +170,7 @@ docker-compose up --abort-on-container-exit || {
 **Error:** `multipass launch failed`
 
 **Solution:**
+
 ```bash
 # Check Multipass status
 multipass version
@@ -181,6 +187,7 @@ multipass delete --all --purge
 **Error:** `atop: command not found`
 
 **Solution:** The test script installs atop automatically. Check Docker logs:
+
 ```bash
 docker-compose logs test-jammy
 ```
@@ -202,6 +209,7 @@ docker-compose logs test-jammy
 **Cause:** atop failed to capture data (permission issue, short capture time)
 
 **Solution:**
+
 1. Verify atop works in VM: `multipass exec vm-name -- atop 1 1`
 2. Check VM has activity: `multipass exec vm-name -- ps aux`
 3. Increase capture time in script (15 → 30 seconds)
@@ -262,6 +270,7 @@ diff <(jq . tests/expected/v2.7.1-output.json) \
 To add support for a new Ubuntu release:
 
 1. Update `tests/generate-fixtures.sh`:
+
    ```bash
    declare -a VMS=(
        "atop-bionic:18.04:2.3.0"
@@ -273,6 +282,7 @@ To add support for a new Ubuntu release:
    ```
 
 2. Update `docker-compose.yml`:
+
    ```yaml
    test-oracular:
      image: ubuntu:24.10
@@ -281,11 +291,13 @@ To add support for a new Ubuntu release:
    ```
 
 3. Generate fixture:
+
    ```bash
    ./tests/generate-fixtures.sh
    ```
 
 4. Run test:
+
    ```bash
    docker-compose run test-oracular
    ```
@@ -324,6 +336,7 @@ For test infrastructure issues, check:
 4. atop version in container: `docker-compose run test-jammy atop -V`
 
 Report issues with:
+
 - Your OS and Docker version
 - Full test output
 - Fixture file size and checksum
