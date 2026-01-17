@@ -1,3 +1,6 @@
 /tests
 /tests
 tests/run-test.sh
+tests/fixtures/README.md
+tests/README.md
+tests/run-test.sh

@@ -554,6 +554,26 @@ The script is designed for Plesk-supported operating systems with atop installed
 
 ### Fixture Generation Problems
 
+**Issue: Lima Shared Mount Contamination (CRITICAL)**
+```
+ERROR: raw file has incompatible format (created by version 2.11 - current version 2.6)
+```
+**Root Cause:** All Lima VMs share the same `~/tmp/lima` mount from the host
+**Impact:** Sequential fixture generation causes version contamination
+**Solutions:**
+```bash
+# The fix is already applied in lima_transfer() function
+# But if you see this error, manually clean the shared mount:
+rm -f ~/tmp/lima/fixture.raw
+
+# Before regenerating fixtures:
+limactl delete --force lima-atop-debian11
+rm -f ~/tmp/lima/fixture.raw tests/fixtures/v2.6.0-debian11.raw
+./tests/generate-all-fixtures.sh --os debian --version 11
+```
+
+**Prevention:** The script now automatically cleans `~/tmp/lima/fixture.raw` before each transfer. Multiple Lima VMs running simultaneously may still share state through this mount.
+
 **Issue: Multipass VM Launch Fails**
 ```
 ERROR: Failed to launch VM: timeout waiting for initialization
