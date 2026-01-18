@@ -51,13 +51,11 @@ fi
 # DETECT SYSTEM INFO
 # ============================================================================
 
-# Get atop version
-ATOP_VERSION=$(atop -V 2>&1 | grep -oP 'Version\s+\d+\.\d+\.\d+' | grep -oP '\d+\.\d+\.\d+')
-if [ -z "$ATOP_VERSION" ]; then
-    ATOP_VERSION=$(atop -V 2>&1 | grep -oP '\d+\.\d+\.\d+' | head -1)
-fi
+# Get atop version (multiple fallback methods for compatibility)
+ATOP_VERSION=$(atop -V 2>&1 | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' | head -1)
 if [ -z "$ATOP_VERSION" ]; then
     echo "❌ ERROR: Could not detect atop version" >&2
+    atop -V >&2
     exit 1
 fi
 
@@ -71,9 +69,13 @@ if command -v lsb_release &>/dev/null; then
 elif [ -f /etc/os-release ]; then
     OS_NAME=$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]')
     OS_RELEASE=$(grep '^VERSION_ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"')
+elif [ -f /etc/system-release ]; then
+    # CloudLinux uses /etc/system-release instead
+    OS_NAME=$(head -1 /etc/system-release | cut -d' ' -f1 | tr '[:upper:]' '[:lower:]')
+    OS_RELEASE=$(grep -o '[0-9][0-9]*\.[0-9]' /etc/system-release | head -1)
 elif [ -f /etc/redhat-release ]; then
-    OS_NAME="rhel"
-    OS_RELEASE=$(grep -oP '\d+\.\d+' /etc/redhat-release | head -1)
+    OS_NAME=$(head -1 /etc/redhat-release | cut -d' ' -f1 | tr '[:upper:]' '[:lower:]')
+    OS_RELEASE=$(grep -o '[0-9][0-9]*\.[0-9]' /etc/redhat-release | head -1)
 elif [ -f /etc/debian_version ]; then
     OS_NAME="debian"
     OS_RELEASE=$(cat /etc/debian_version)
@@ -81,6 +83,15 @@ else
     OS_NAME="unknown"
     OS_RELEASE="0.0"
 fi
+
+# Cleanup OS names (some systems return variants)
+case "$OS_NAME" in
+    cloudlinux) OS_NAME="cloudlinux" ;;
+    centos) OS_NAME="centos" ;;
+    rhel) OS_NAME="rhel" ;;
+    ubuntu) OS_NAME="ubuntu" ;;
+    debian) OS_NAME="debian" ;;
+esac
 
 # Validate detection
 if [ -z "$OS_NAME" ] || [ -z "$OS_RELEASE" ]; then
@@ -107,6 +118,16 @@ echo "  OS:                $OS_NAME"
 echo "  Release:           $OS_RELEASE"
 echo "  Output:            $OUTPUT_FILE"
 echo ""
+
+# Debug: Show OS detection files
+if [ -f /etc/system-release ]; then
+    echo "  [DEBUG] /etc/system-release: $(head -1 /etc/system-release)"
+elif [ -f /etc/redhat-release ]; then
+    echo "  [DEBUG] /etc/redhat-release: $(head -1 /etc/redhat-release)"
+elif [ -f /etc/os-release ]; then
+    echo "  [DEBUG] /etc/os-release ID: $(grep '^ID=' /etc/os-release)"
+fi
+echo ""
 echo "  Capturing 15-second atop snapshot..."
 echo ""
 
@@ -128,7 +149,7 @@ if [ ! -f "$OUTPUT_FILE" ]; then
     exit 1
 fi
 
-FILE_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || stat -f%z "$OUTPUT_FILE" 2>/dev/null || echo "0")
+FILE_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || stat -f%z "$OUTPUT_FILE" 2>/dev/null || wc -c < "$OUTPUT_FILE" 2>/dev/null || echo "0")
 FILE_SIZE_KB=$((FILE_SIZE / 1024))
 
 if [ "$FILE_SIZE" -lt 100 ]; then
