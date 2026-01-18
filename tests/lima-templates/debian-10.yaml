@@ -1,0 +1,33 @@
+# Lima VM template for Debian 10 (Buster) - atop 2.4.0
+# Cloud images: https://cloud.debian.org/images/cloud/buster/latest/
+
+images:
+  - location: "https://cloud.debian.org/images/cloud/buster/latest/debian-10-genericcloud-arm64.qcow2"
+    arch: "aarch64"
+  - location: "https://cloud.debian.org/images/cloud/buster/latest/debian-10-genericcloud-amd64.qcow2"
+    arch: "x86_64"
+
+cpus: 2
+memory: "2GiB"
+disk: "5GiB"
+
+ssh:
+  localPort: 0
+  loadDotSSHPubKeys: true
+
+firmware:
+  legacyBIOS: false
+
+mounts:
+  - location: "~"
+    writable: false
+  - location: "~/tmp/lima"
+    writable: true
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/sh
+      set -eux -o pipefail
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -qq

@@ -1,0 +1,47 @@
+# CentOS 7 (atop 2.3.0) - x86_64 only for Plesk compatibility
+# ELS Support: Until January 1, 2027 (Plesk Extended Lifecycle Support)
+# Note: x86_64 only due to kernel 3.10 aarch64 instability on Apple Silicon
+#
+# USAGE ON APPLE SILICON (M2):
+#   Default: Skipped via guardrail (fast development cycle)
+#   Manual QEMU Override (slow, ~5-10 min): 
+#     limactl start --set='.vmType="qemu"' --name=centos7-qemu tests/lima-templates/centos-7.yaml
+
+# Default: Auto-detect (VZ on native x86_64, guardrail skips on M2 unless manually overridden)
+vmType: "vz"
+arch: "x86_64"
+
+images:
+  - location: "https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2"
+    arch: "x86_64"
+
+# Increased resources for QEMU emulation compatibility (M2 override scenario)
+cpus: 4
+memory: "4GiB"
+disk: "12GiB"
+
+mounts:
+  - location: "~"
+    writable: false
+  - location: "/tmp/lima"
+    writable: true
+
+ssh:
+  localPort: 0
+  loadDotSSHPubKeys: true
+
+containerd:
+  system: false
+  user: false
+
+# Display configuration (QEMU emulation compatible)
+video:
+  display: "none"
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      # Update package cache (suppress progress)
+      yum update -y -q || true

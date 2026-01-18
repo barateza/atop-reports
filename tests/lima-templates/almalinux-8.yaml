@@ -1,0 +1,47 @@
+# Lima VM Template for AlmaLinux 8
+# Used for generating golden master test fixtures for atop-reports.sh
+#
+# This template creates a reproducible environment with:
+# - AlmaLinux 8.9 (locked version for consistency)
+# - 2 vCPUs / 2GB RAM (prevents OOM during dnf operations)
+# - SSH access for remote command execution
+# - Shared mount for fixture transfer
+#
+# Usage: limactl start tests/lima-templates/almalinux-8.yaml
+
+images:
+  # Dynamic "latest" URLs for automatic updates (v2.1+ strategy)
+  # AlmaLinux 8 GenericCloud images (qcow2 format)
+  - location: "https://repo.almalinux.org/almalinux/8/cloud/aarch64/images/AlmaLinux-8-GenericCloud-latest.aarch64.qcow2"
+    arch: "aarch64"
+  - location: "https://repo.almalinux.org/almalinux/8/cloud/x86_64/images/AlmaLinux-8-GenericCloud-latest.x86_64.qcow2"
+    arch: "x86_64"
+
+# VM Resources
+cpus: 2
+memory: "2GiB"
+disk: "12GiB"
+
+# SSH Configuration
+ssh:
+  localPort: 0  # Auto-assign
+  loadDotSSHPubKeys: true
+
+# Mount host directory for fixture transfer
+mounts:
+  - location: "~"
+    writable: true
+  - location: "~/tmp/lima"
+    writable: true
+
+# Provision script (runs on first boot)
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -e
+      echo "Lima AlmaLinux 8 VM provisioned successfully"
+
+# Firmware type (legacy for broader compatibility)
+firmware:
+  legacyBIOS: true

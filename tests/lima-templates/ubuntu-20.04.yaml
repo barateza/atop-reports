@@ -1,0 +1,34 @@
+# Ubuntu 20.04 (Focal) - Unified Architecture
+# Multi-arch with native aarch64 on Apple Silicon (no emulation)
+# This template is used by generate-all-fixtures.sh for fixture generation
+images:
+  # AMD64 (Intel/AMD)
+  - location: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+    arch: "x86_64"
+  # ARM64 (Apple Silicon)
+  - location: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-arm64.img"
+    arch: "aarch64"
+
+cpus: 2
+memory: "2GiB"
+
+# VirtioFS for performance (high I/O workloads)
+# Fallback: If virtiofs fails, manually edit to use:
+#   - mountType: "9p" (slower but compatible with older kernels)
+#   - mountType: "sshfs" (if guest doesn't support virtiofs/9p)
+mounts:
+  - location: "~"
+    writable: false
+  - location: "/tmp/lima"
+    writable: true
+
+mountType: "virtiofs"
+
+# Networking (default user-mode, suitable for atop testing)
+ssh:
+  loadDotSSHPubKeys: true
+
+# Disable containerd (not needed for atop testing, speeds up boot)
+containerd:
+  system: false
+  user: false
