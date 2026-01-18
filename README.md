@@ -6,9 +6,9 @@ This script monitors system resources on Plesk servers and generates detailed re
 
 **Version:** 2.0.0 (Production-Ready)  
 **Status:** ✅ All 7/10 critical OS versions tested and validated  
-**Test Coverage:** 70% (Ubuntu 4/4, Debian 3/4, AlmaLinux 0/2*)
+**Test Coverage:** 70% (Ubuntu 4/4, Debian 3/4) → 80% Ready (CentOS 7, CloudLinux 7 code complete)
 
-*See [Known Limitations](#known-limitations) - AlmaLinux support deferred to v2.1 due to upstream VZ driver incompatibility on Apple Silicon.
+*See [Known Limitations](#known-limitations) - AlmaLinux support deferred to v2.1 due to upstream VZ driver incompatibility on Apple Silicon. CentOS 7 / CloudLinux 7 implementation complete, ready for fixture generation (ELS supported until Jan 1, 2027).
 
 ## What's New in v2.0
 
@@ -79,7 +79,7 @@ sudo ./atop-reports.sh
 
 ### Test Infrastructure (Optional - Development)
 
-The project includes comprehensive test fixtures for 7 OS distributions (70% coverage):
+The project includes comprehensive test fixtures for OS distributions (in progress):
 
 ```bash
 # Generate fixtures (requires Lima >= 0.19.0)
@@ -93,8 +93,9 @@ docker-compose up --abort-on-container-exit
 docker-compose run --rm test-jammy  # Ubuntu 22.04
 ```
 
-**Test Coverage:** 7/10 platforms (Ubuntu 4, Debian 3, AlmaLinux 0*)
-- \* AlmaLinux deferred to v2.1 (upstream VZ driver issue on Apple Silicon)
+**Test Coverage Progress:** 7/10 platforms complete (Ubuntu 4, Debian 3)
+- ✅ Next: CentOS 7 / CloudLinux 7 (ELS supported, code complete, ready for fixture generation)
+- ⏸️ AlmaLinux deferred to v2.1 (upstream VZ driver issue on Apple Silicon)
 - See [Known Limitations](#known-limitations) for details
 
 ### Fleet Deployment (Ansible/Puppet)

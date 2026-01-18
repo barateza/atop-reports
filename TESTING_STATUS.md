@@ -11,6 +11,7 @@ This document tracks the testing progress for the v2.0 release with dynamic head
 **Date:** January 17, 2026  
 **Docker:** v29.1.3, Compose v5.0.0  
 **Status:** ✅ INFRASTRUCTURE COMPLETE - 7/10 FIXTURES VALIDATED
+**In Progress:** CentOS 7 / CloudLinux 7 (2 additional, ELS supported until Jan 1, 2027)
 
 ### Test Infrastructure Updates
 
@@ -57,12 +58,40 @@ This document tracks the testing progress for the v2.0 release with dynamic head
 
 **Debian 10 Status:** ❌ SKIPPED (EOL June 2024, image 404, duplicate of atop 2.4.0 from Ubuntu 20.04)
 
-### 🟡 AlmaLinux Test Matrix (Code Complete, Fixtures Blocked by Upstream Infrastructure)
+### � CentOS 7 / CloudLinux 7 Test Matrix (Implementation Complete - Ready for Testing)
 
 | Version | atop | Test Status | Container ID | Status |
 |---------|------|-------------|--------------|--------|
-| 8.x | 2.7.1 | 🟡 CODE READY | ✅ Yes | ⏳ Fixture generation blocked by Lima VZ timeout |
-| 9.x | 2.7.1 | 🟡 CODE READY | ✅ Yes | ⏳ Fixture generation blocked by Lima VZ timeout |
+| CentOS 7 | 2.3.0 | ✅ CODE COMPLETE | ❌ Never | Fixture generation ready (ELS until Jan 1, 2027) |
+| CloudLinux 7 | 2.3.0 | ✅ CODE COMPLETE | ❌ Never | Fixture generation ready (ELS until Jan 1, 2027) |
+
+**Status Update (Jan 17, 2026):**
+
+✅ **IMPLEMENTATION COMPLETE:**
+- ✅ Lima YAML templates created (centos-7.yaml, cloudlinux-7.yaml)
+- ✅ Cloud image URLs configured (x86_64-only per Plesk standards)
+- ✅ Package manager case added (yum for RHEL 7 family, no EPEL needed)
+- ✅ VZ timeout guardrail implemented (preemptive Apple Silicon protection)
+- ✅ Docker Compose services added (test-centos7, test-cloudlinux7)
+- ✅ OS configuration mapping expanded in generate-all-fixtures.sh
+- ⏳ Ready for fixture generation: `./tests/generate-all-fixtures.sh --os centos --version 7`
+
+**Plesk ELS Support:**
+- **CentOS 7 & CloudLinux 7:** Until January 1, 2027 (vendor EOL June 30, 2024)
+- **Priority:** CentOS 7 first (5x more deployed than CloudLinux 7)
+- **Architecture:** x86_64-only (CentOS 7 aarch64 unstable on kernel 3.10)
+
+**Package Manager Details:**
+- Uses `yum` (not dnf) for RHEL 7 family
+- atop 2.3.0 available in base repositories (no EPEL required)
+- Simpler installation than AlmaLinux (no repository enable step)
+
+### 🟡 AlmaLinux Test Matrix (Deferred to v2.1)
+
+| Version | atop | Test Status | Container ID | Status |
+|---------|------|-------------|--------------|--------|
+| 8.x | 2.7.1 | 🟡 CODE READY | ✅ Yes | ⏸️ Fixture generation blocked by Lima VZ timeout |
+| 9.x | 2.7.1 | 🟡 CODE READY | ✅ Yes | ⏸️ Fixture generation blocked by Lima VZ timeout |
 
 **Status (Jan 17, 2026):** Code is Production-Ready, Fixtures Deferred to v2.1
 - ✅ Cloud images download successfully (dynamic URLs verified)

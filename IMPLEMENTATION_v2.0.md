@@ -239,15 +239,19 @@ if (data.meta.schema_version === "2.0") {
 
 ## Compatibility Matrix
 
-| OS | atop Version | Dynamic Detection | Fallback Map | Container ID |
-|----|--------------|-------------------|--------------|--------------|
-| Ubuntu 18.04 | 2.3.0 | ✅ Works | ✅ Available | ❌ Always null |
-| Ubuntu 20.04 | 2.4.0 | ✅ Works | ✅ Available | ❌ Always null |
-| Ubuntu 22.04 | 2.7.1 | ✅ Works | ✅ Available | ✅ Supported |
-| Ubuntu 24.04 | 2.10.0 | ✅ Works | ✅ Available | ✅ Supported |
-| Debian 11 | 2.6.0 | ✅ Works | ✅ Available | ⚠️ Partial |
-| Debian 12 | 2.8.1 | ✅ Works | ✅ Available | ✅ Supported |
-| RHEL/AlmaLinux 8/9 | 2.7.1 | ✅ Works | ✅ Available | ✅ Supported |
+| OS | atop Version | Dynamic Detection | Fallback Map | Container ID | ELS Status |
+|----|--------------|-------------------|--------------|--------------|------------|
+| Ubuntu 18.04 | 2.3.0 | ✅ Works | ✅ Available | ❌ Always null | Until Jan 1, 2027 |
+| Ubuntu 20.04 | 2.4.0 | ✅ Works | ✅ Available | ❌ Always null | Until Dec 31, 2027 |
+| Ubuntu 22.04 | 2.7.1 | ✅ Works | ✅ Available | ✅ Supported | Active |
+| Ubuntu 24.04 | 2.10.0 | ✅ Works | ✅ Available | ✅ Supported | Active |
+| Debian 10 | 2.4.0 | ✅ Works | ✅ Available | ❌ Always null | Until Jan 1, 2027 |
+| Debian 11 | 2.6.0 | ✅ Works | ✅ Available | ⚠️ Partial | Active |
+| Debian 12 | 2.8.1 | ✅ Works | ✅ Available | ✅ Supported | Active |
+| CentOS 7 | 2.3.0 | ✅ Works | ✅ Available | ❌ Always null | Until Jan 1, 2027 |
+| CloudLinux 7 | 2.3.0 | ✅ Works | ✅ Available | ❌ Always null | Until Jan 1, 2027 |
+| AlmaLinux 8 | 2.7.1 | ✅ Works | ✅ Available | ✅ Supported | Active |
+| AlmaLinux 9 | 2.7.1 | ✅ Works | ✅ Available | ✅ Supported | Active |
 
 ---
 
