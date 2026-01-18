@@ -22,6 +22,10 @@ version: '3.8'
 #   docker-compose run test-alma8   # Test against AlmaLinux 8 (atop 2.7.1)
 #   docker-compose run test-alma9   # Test against AlmaLinux 9 (atop 2.7.1)
 #
+#   # CentOS / CloudLinux
+#   docker-compose run test-centos7      # Test against CentOS 7 (atop 2.3.0)
+#   docker-compose run test-cloudlinux7  # Test against CloudLinux 7 (atop 2.3.0)
+#
 # Or run all tests:
 #   docker-compose up --abort-on-container-exit
 
@@ -144,5 +148,28 @@ services:
       - ./tests:/tests
     working_dir: /app
     command: /tests/run-test.sh "2.7.1" "9" "almalinux"
+    environment:
+      - TZ=UTC
+
+  # ==================== CentOS / CloudLinux Services ====================
+  test-centos7:
+    image: centos:7
+    container_name: atop-test-centos7
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.3.0" "7" "centos"
+    environment:
+      - TZ=UTC
+
+  test-cloudlinux7:
+    image: cloudlinux:7
+    container_name: atop-test-cloudlinux7
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.3.0" "7" "cloudlinux"
     environment:
       - TZ=UTC
