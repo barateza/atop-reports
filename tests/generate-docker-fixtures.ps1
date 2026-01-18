@@ -16,6 +16,8 @@ $FIXTURES = @(
     @{OS = "debian:11"; Version = "2.6.0"; Name = "v2.6.0-debian11.raw"}
     @{OS = "debian:12"; Version = "2.8.1"; Name = "v2.8.1-debian12.raw"}
     @{OS = "debian:13"; Version = "2.11.1"; Name = "v2.11.1-debian13.raw"}
+    @{OS = "centos:7"; Version = "2.3.0"; Name = "v2.3.0-centos7.raw"}
+    @{OS = "cloudlinux:7"; Version = "2.3.0"; Name = "v2.3.0-cloudlinux7.raw"}
 )
 
 

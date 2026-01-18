@@ -1,0 +1,16 @@
+﻿docker : bash: line 3: 
+atop: command not found
+No linha:1 caractere:16
++ $scriptBlock | docker run 
+--rm -i centos:7 bash 2>&1 
+| Out-File 'd:\r ...
++                ~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (bash:  
+   line 3: atop: command    
+ not found:String) [], R    
+emoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 

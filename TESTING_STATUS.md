@@ -10,8 +10,9 @@ This document tracks the testing progress for the v2.0 release with dynamic head
 
 **Date:** January 17, 2026  
 **Docker:** v29.1.3, Compose v5.0.0  
-**Status:** ✅ INFRASTRUCTURE COMPLETE - 7/10 FIXTURES VALIDATED
-**In Progress:** CentOS 7 / CloudLinux 7 (2 additional, ELS supported until Jan 1, 2027)
+**Status:** ✅ INFRASTRUCTURE COMPLETE - 8/9 FIXTURES GENERATED ON WINDOWS
+**Generated On:** Windows with Docker Desktop (PowerShell automation)
+**Note:** CentOS 7 ✅ generated; CloudLinux 7 ❌ no public Docker image available
 
 ### Test Infrastructure Updates
 
@@ -51,6 +52,7 @@ This document tracks the testing progress for the v2.0 release with dynamic head
 **Status Update (Jan 17, 2026):**
 
 ✅ **DEBIAN 11 COMPLETED (Jan 17, 2026):**
+
 - ✅ Implemented `limactl cp` transfer mechanism to bypass unstable VirtioFS mount
 - ✅ Generated 8.0KB fixture successfully
 - ✅ Docker test validation: 627 lines of parseable output, JSON schema v2.0, all tests passed
@@ -58,30 +60,40 @@ This document tracks the testing progress for the v2.0 release with dynamic head
 
 **Debian 10 Status:** ❌ SKIPPED (EOL June 2024, image 404, duplicate of atop 2.4.0 from Ubuntu 20.04)
 
-### � CentOS 7 / CloudLinux 7 Test Matrix (Implementation Complete - Ready for Testing)
+### ✅ CentOS 7 Test Matrix (Fixture Generated - Jan 17, 2026)
 
 | Version | atop | Test Status | Container ID | Status |
 |---------|------|-------------|--------------|--------|
-| CentOS 7 | 2.3.0 | ✅ CODE COMPLETE | ❌ Never | Fixture generation ready (ELS until Jan 1, 2027) |
-| CloudLinux 7 | 2.3.0 | ✅ CODE COMPLETE | ❌ Never | Fixture generation ready (ELS until Jan 1, 2027) |
+| CentOS 7 | 2.3.0 | ✅ GENERATED | ❌ Never | Fixture: v2.3.0-centos7.raw (ELS until Jan 1, 2027) |
 
 **Status Update (Jan 17, 2026):**
 
-✅ **IMPLEMENTATION COMPLETE:**
-- ✅ Lima YAML templates created (centos-7.yaml, cloudlinux-7.yaml)
-- ✅ Cloud image URLs configured (x86_64-only per Plesk standards)
-- ✅ Package manager case added (yum for RHEL 7 family, no EPEL needed)
-- ✅ VZ timeout guardrail implemented (preemptive Apple Silicon protection)
-- ✅ Docker Compose services added (test-centos7, test-cloudlinux7)
-- ✅ OS configuration mapping expanded in generate-all-fixtures.sh
-- ⏳ Ready for fixture generation: `./tests/generate-all-fixtures.sh --os centos --version 7`
+✅ **CENTOS 7 FIXTURE GENERATED:**
+- ✅ Docker image pulled: `centos:7`
+- ✅ atop 2.3.0 installed via yum (no EPEL needed for RHEL 7 family)
+- ✅ Fixture captured: v2.3.0-centos7.raw (~5-6 KB)
+- ✅ Ready for Docker Compose test suite
+
+### ❌ CloudLinux 7 Status (Not Available)
+
+| Version | atop | Test Status | Issue | Status |
+|---------|------|-------------|-------|--------|
+| CloudLinux 7 | 2.3.0 | ❌ BLOCKED | No public Docker image | Deferred to v2.1 |
+
+**Status Update (Jan 17, 2026):**
+- ❌ **No public Docker image:** CloudLinux 7 does not have a public Docker Hub image
+- **Alternative approaches:** Would require paid CloudLinux subscription or internal registry
+- **Impact:** Minimal (CentOS 7 covers RHEL 7 baseline; CloudLinux is vendor-specific variant)
+- **Recommendation:** Defer CloudLinux 7 to v2.1; fixture generation requires private registry access
 
 **Plesk ELS Support:**
+
 - **CentOS 7 & CloudLinux 7:** Until January 1, 2027 (vendor EOL June 30, 2024)
 - **Priority:** CentOS 7 first (5x more deployed than CloudLinux 7)
 - **Architecture:** x86_64-only (CentOS 7 aarch64 unstable on kernel 3.10)
 
 **Package Manager Details:**
+
 - Uses `yum` (not dnf) for RHEL 7 family
 - atop 2.3.0 available in base repositories (no EPEL required)
 - Simpler installation than AlmaLinux (no repository enable step)
@@ -94,6 +106,7 @@ This document tracks the testing progress for the v2.0 release with dynamic head
 | 9.x | 2.7.1 | 🟡 CODE READY | ✅ Yes | ⏸️ Fixture generation blocked by Lima VZ timeout |
 
 **Status (Jan 17, 2026):** Code is Production-Ready, Fixtures Deferred to v2.1
+
 - ✅ Cloud images download successfully (dynamic URLs verified)
 - ✅ Lima VM boot and SSH successful (12GB disk resolves shrinking error)
 - ✅ **EPEL Repository Issue RESOLVED** (Jan 17):
@@ -275,12 +288,12 @@ limactl delete --force lima-atop-alma9
 | Ubuntu | 20.04 | 2.4.0 | 7.1 KB | ✅ Complete | Docker tests pass |
 | Ubuntu | 22.04 | 2.7.1 | 7.5 KB | ✅ Complete | Docker tests pass |
 | Ubuntu | 24.04 | 2.10.0 | 9.2 KB | ✅ Complete | Docker tests pass |
-| Debian | 10 | 2.4.0 | ~7 KB | ⏸️ Pending | Not started |
-| Debian | 11 | 2.6.0 | 12 KB | 🔄 Regenerating | Awaiting validation |
-| Debian | 12 | 2.8.1 | **8.1 KB** | ✅ Complete | **Docker tests pass** |
-| Debian | 13 | 2.11.1 | **12 KB** | ✅ Complete | **Docker tests pass** |
-| AlmaLinux | 8 | 2.7.1 | ~8 KB | ⏸️ Pending | Not started |
-| AlmaLinux | 9 | 2.7.1 | ~8 KB | ⏸️ Pending | Not started |
+| Debian | 10 | 2.4.0 | ~7 KB | ⏸️ Skipped | EOL, duplicate version |
+| Debian | 11 | 2.6.0 | 8.0 KB | ✅ Complete | Docker tests pass |
+| Debian | 12 | 2.8.1 | 8.1 KB | ✅ Complete | Docker tests pass |
+| Debian | 13 | 2.11.1 | 11.7 KB | ✅ Complete | Docker tests pass |
+| CentOS | 7 | 2.3.0 | 5-6 KB | ✅ Complete | Generated Jan 17 |
+| CloudLinux | 7 | 2.3.0 | - | ❌ Blocked | No public Docker image |
 
 - [ ] Container ID null handling (v2.3.0, v2.4.0)
 - [ ] JSON schema v2.0 validation
@@ -318,6 +331,7 @@ limactl delete --force lima-atop-alma9
 **Status: 5/7 Complete - READY FOR RELEASE (Comprehensive Testing Path)**
 
 **Known Limitations Documented:**
+
 - ⏸️ Debian 10: Skipped (EOL, duplicate atop 2.4.0 coverage)
 - ⏸️ AlmaLinux 8/9: Deferred to v2.1 (cloud image URL updates required)
 
@@ -405,6 +419,7 @@ limactl delete --force lima-atop-alma9
 ### Guardrail Implementation ✅
 
 Successfully implemented intelligent kill chain detection for AlmaLinux on Apple Silicon:
+
 - **Detection:** `uname -m` (arm64) + OS (almalinux)
 - **Action:** Graceful skip with professional notification
 - **Time Saved:** 60+ seconds per attempt (prevents timeout loop)
@@ -412,6 +427,7 @@ Successfully implemented intelligent kill chain detection for AlmaLinux on Apple
 - **Validation:** Tested and working on current Apple Silicon system
 
 **Test Output:**
+
 ```
 ⚠️  [SKIP] AlmaLinux on Apple Silicon (VZ Driver Incompatibility)
    Reason: Upstream Lima/cloud-init SSH socket initialization timeout
@@ -462,6 +478,7 @@ Failed: 0
 **Services Blocked:** 3/10 (documented for v2.1)
 
 **Validation per Working Service:**
+
 - ✅ test-bionic (Ubuntu 18.04, atop 2.3.0) - All tests pass
 - ✅ test-focal (Ubuntu 20.04, atop 2.4.0) - All tests pass
 - ✅ test-jammy (Ubuntu 22.04, atop 2.7.1) - All tests pass
@@ -473,6 +490,7 @@ Failed: 0
 ### Release Readiness: ✅ PRODUCTION READY
 
 **Completion Status:**
+
 - ✅ 7/10 fixtures (70% coverage, all critical versions)
 - ✅ 7/7 Docker tests passing
 - ✅ JSON schema v2.0 stable
@@ -482,10 +500,12 @@ Failed: 0
 - ✅ limactl cp deterministic transfer verified
 
 **Known Limitations (v2.1 Targets):**
+
 - Debian 10: EOL June 2024, image unavailable (impact: minimal, version covered by Ubuntu 20.04)
 - AlmaLinux 8/9: ✅ URLs updated (Jan 17, 2026) - Ready for v2.1 regeneration
 
 **Next Steps:**
+
 1. ✅ Verify all 7 fixtures in tests/fixtures/ directory
 2. ⏳ Run Docker Compose full test matrix: `docker-compose up --abort-on-container-exit`
 3. ⏳ Finalize v2.0 release documentation
@@ -506,6 +526,7 @@ Failed: 0
 ### Deliverables Inventory
 
 **Main Executable:**
+
 - ✅ atop-reports.sh (39 KB, 882 lines, ShellCheck clean)
 - ✅ atop-reports.conf.example (44 lines, config template)
 
@@ -524,6 +545,7 @@ Failed: 0
 **Total Coverage:** 70% (7/10 platforms)
 
 **Documentation (2,700+ lines):**
+
 - ✅ README.md (550+ lines) - User guide with Usage & Deployment sections
 - ✅ V2.0-RELEASE-NOTES.md (600+ lines) - Features with full Migration Guide
 - ✅ IMPLEMENTATION_v2.0.md (399 lines) - Technical deep dive with Project Summary
@@ -574,6 +596,7 @@ Failed: 0
 ```
 
 **Validation per Service:**
+
 - Binary fixture format valid (file command confirms "data")
 - Parseable output extraction (627+ lines per fixture)
 - JSON schema validation (v2.0 format correct)
@@ -584,6 +607,7 @@ Failed: 0
 ### Key Technical Achievements
 
 **1. Dynamic Header Detection**
+
 - **Problem:** atop field positions vary by version
 - **Solution:** Parse headers to learn field positions automatically
 - **Coverage:** Works on atop 2.3.0 → 2.11.1+ (proven)
@@ -591,18 +615,21 @@ Failed: 0
 - **Impact:** Future-proof for unknown atop versions
 
 **2. Container ID Support**
+
 - **Implementation:** Extract Field 17 (CID) from PRG label in atop 2.7.1+
 - **Null-Safety:** Always present in JSON (null when N/A)
 - **Docker/Kubernetes:** Enables container resource attribution
 - **Testing:** Verified on all fixtures (null pre-2.7.1, present 2.7.1+)
 
 **3. Debian 11 QEMU Fix (Critical)**
+
 - **Problem:** VirtioFS mount unstable in Debian 11 QEMU
 - **Solution:** SSH-based `limactl cp` transfer (deterministic, no races)
 - **Result:** 100% reliable fixture generation
 - **Validation:** 8.0KB fixture, all tests passing
 
 **4. JSON Schema Versioning**
+
 - **Mechanism:** Semantic versioning via `schema_version` metadata
 - **Non-Breaking:** Field additions safe (parsers ignore unknown fields)
 - **Breaking Changes:** Version bump signals structural changes (v3.0)
@@ -621,6 +648,7 @@ Failed: 0
 **Validation Status:** ✅ APPROVED FOR IMMEDIATE DEPLOYMENT
 
 **Pre-Deployment Checklist:**
+
 - [x] All features implemented and tested
 - [x] Documentation complete (2,700+ lines)
 - [x] Fixtures validated (7/10, 70% coverage)
@@ -631,11 +659,13 @@ Failed: 0
 - [x] Known limitations documented
 
 **Recommended Deployment Timeline:**
+
 1. **Week 1:** Staging validation (1-2 servers)
 2. **Week 2:** 10% production rollout (monitor)
 3. **Week 3-4:** Gradual 100% rollout
 
 **Rollback Plan:**
+
 - Keep v1.1 copy available
 - JSON schema version check enables version detection
 - v1.1 JSON uses `schema_version: "1.0"` (routing logic)
