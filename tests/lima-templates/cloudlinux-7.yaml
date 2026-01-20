@@ -12,7 +12,7 @@ vmType: "qemu"
 arch: "x86_64"
 
 images:
-  - location: "https://repo.cloudlinux.com/cloudlinux/images/CloudLinux-7-x86_64-GenericCloud.qcow2"
+  - location: "https://images.cloudlinux.com/images/openstack/cloudlinux/nopanel/7-amd64/cloudlinux-7.9-x86_64-openstack-20230616.qcow2"
     arch: "x86_64"
 
 # Increased resources for QEMU emulation compatibility (M2 override scenario)

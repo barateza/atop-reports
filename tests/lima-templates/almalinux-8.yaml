@@ -30,8 +30,8 @@ ssh:
 # Mount host directory for fixture transfer
 mounts:
   - location: "~"
-    writable: true
-  - location: "~/tmp/lima"
+    writable: false
+  - location: "/tmp/lima"
     writable: true
 
 # Provision script (runs on first boot)

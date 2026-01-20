@@ -7,9 +7,8 @@ os: "Linux"
 arch: "x86_64"
 
 images:
-  - location: "https://download.cloudlinux.com/cloudlinux/images/cl8-latest-x86_64-cloudlinux.qcow2"
+  - location: "https://images.cloudlinux.com/images/openstack/cloudlinux/nopanel/8-amd64/cloudlinux-8.10-x86_64-openstack-20251124.qcow2"
     arch: "x86_64"
-    digest: "sha256:skip"  # Dynamic cloud image, skip verification
 
 cpus: 2
 memory: "2GiB"

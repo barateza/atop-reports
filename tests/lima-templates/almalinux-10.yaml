@@ -7,9 +7,12 @@ os: "Linux"
 arch: "x86_64"
 
 images:
+  # x86_64
   - location: "https://repo.almalinux.org/almalinux/10/cloud/x86_64/images/AlmaLinux-10-GenericCloud-latest.x86_64.qcow2"
     arch: "x86_64"
-    digest: "sha256:skip"  # Dynamic cloud image, skip verification
+  # aarch64
+  - location: "https://repo.almalinux.org/almalinux/10/cloud/aarch64/images/AlmaLinux-10-GenericCloud-latest.aarch64.qcow2"
+    arch: "aarch64"
 
 cpus: 2
 memory: "2GiB"
