@@ -131,12 +131,18 @@ case $REPLY in
         ;;
     2)
         echo -e "${BLUE}Running Recommended tier tests...${NC}"
-        echo -e "${YELLOW}Note: CloudLinux 9 test will be skipped (requires Docker login to cr.cloudlinux.com)${NC}"
         echo ""
         docker-compose run --rm test-noble       # Ubuntu 24.04
         docker-compose run --rm test-alma10      # AlmaLinux 10
         docker-compose run --rm test-debian13    # Debian 13
-        docker-compose run --rm test-cloudlinux9 # CloudLinux 9
+        
+        # CloudLinux 9 - requires authenticated Docker registry
+        echo -e "${YELLOW}Attempting CloudLinux 9 test (may fail without Docker auth)...${NC}"
+        if ! docker-compose run --rm test-cloudlinux9 2>/dev/null; then
+            echo -e "${YELLOW}⚠️  CloudLinux 9 test skipped - Docker image not available${NC}"
+            echo -e "${YELLOW}   To enable: docker login cr.cloudlinux.com${NC}"
+            echo ""
+        fi
 
         docker-compose run --rm test-alma9       # AlmaLinux 9 (RHEL 9 proxy)
         docker-compose run --rm test-jammy       # Ubuntu 22.04
