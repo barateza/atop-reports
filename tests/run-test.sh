@@ -80,8 +80,16 @@ case "$OS_FAMILY" in
             exit 1
         fi
         ;;
-    centos|cloudlinux)
-        # YUM-based systems (CentOS 7, CloudLinux)
+    centos)
+        # CentOS 7 is EOL (June 30, 2024) - must use vault.centos.org mirrors
+        sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
+        sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
+        
+        yum install -y -q epel-release 2>&1 | grep -v "already installed" || true
+        yum install -y -q atop jq bc 2>&1 | grep -v "already installed" || true
+        ;;
+    cloudlinux)
+        # CloudLinux - YUM-based system
         yum install -y -q epel-release >/dev/null 2>&1 || true
         yum install -y -q atop jq bc >/dev/null 2>&1
         ;;
