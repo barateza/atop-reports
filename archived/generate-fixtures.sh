@@ -1,5 +1,7 @@
 #!/bin/bash
 ###############################################################################
+# ⚠️ DEPRECATED: Use tests/generate-all-fixtures.sh instead (Lima-based, all OS families)
+###############################################################################
 # Fixture Generation Script - Multipass-based golden master capture
 # 
 # This script automates the generation of atop raw log fixtures for testing
