@@ -345,33 +345,19 @@ install_atop() {
             vm_exec "$vm_name" yum install -y -q atop || return 1
             ;;
             
-        almalinux)
-            # DNF-based systems with EPEL (v2.1 targets AlmaLinux support)
+        almalinux|rocky)
+            # DNF-based systems with EPEL
             echo "    Installing EPEL repository..."
             vm_exec "$vm_name" dnf install -y -q epel-release || return 1
             
             echo "    Enabling EPEL repository..."
             if ! vm_exec "$vm_name" dnf config-manager --set-enabled epel 2>&1; then
-                echo "        ⚠️  WARNING: EPEL enable failed (VZ timeout upstream blocker)"
-                echo "        Attempting atop install anyway (may fail on older mirrors)..."
+                echo "        ⚠️  WARNING: EPEL enable failed"
+                echo "        Attempting atop install anyway..."
             fi
             
-            echo "    Installing atop (with timeout retry logic)..."
-            local retry=0
-            while [ $retry -lt $max_retries ]; do
-                # Use bash -c to wrap vm_exec function call for timeout command
-                if timeout 30 bash -c "vm_exec '$vm_name' dnf install -y -q atop" 2>&1; then
-                    return 0
-                fi
-                retry=$((retry + 1))
-                if [ $retry -lt $max_retries ]; then
-                    echo "        ⚠️  Retry $retry/$max_retries (upstream VZ timeout)..."
-                    sleep $retry_delay
-                fi
-            done
-            
-            echo "        ✗ NOTICE: AlmaLinux fixture generation deferred to v2.1 (upstream VZ timeout blocker)"
-            return 1
+            echo "    Installing atop..."
+            vm_exec "$vm_name" dnf install -y -q atop || return 1
             ;;
             
         *)
