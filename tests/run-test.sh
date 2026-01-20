@@ -10,6 +10,8 @@
 # Example: ./run-test.sh "2.7.1" "22.04" "ubuntu"
 #          ./run-test.sh "2.8.1" "12" "debian"
 #          ./run-test.sh "2.7.1" "8" "almalinux"
+#
+# Note: CloudLinux tests require Docker login or running on CloudLinux host
 ###############################################################################
 
 set -e
@@ -17,6 +19,26 @@ set -e
 ATOP_VERSION="${1:-2.7.1}"
 OS_VERSION="${2:-22.04}"
 OS_FAMILY="${3:-ubuntu}"
+
+# Special handling for CloudLinux: Check if we can actually run this test
+if [ "$OS_FAMILY" = "cloudlinux" ]; then
+    # Check if we're running in a CloudLinux container
+    if ! grep -q "CloudLinux" /etc/os-release 2>/dev/null; then
+        echo "=========================================="
+        echo "⚠️  CloudLinux Test Skipped"
+        echo "=========================================="
+        echo ""
+        echo "CloudLinux Docker images require authentication."
+        echo ""
+        echo "To run CloudLinux tests:"
+        echo "  1) Log in to CloudLinux registry: docker login cr.cloudlinux.com"
+        echo "  2) Re-run the test suite"
+        echo ""
+        echo "Alternative: Run tests on a native CloudLinux 9 system"
+        echo ""
+        exit 0
+    fi
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURE_FILE="$SCRIPT_DIR/fixtures/v${ATOP_VERSION}-${OS_FAMILY}${OS_VERSION}.raw"
