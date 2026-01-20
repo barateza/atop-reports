@@ -169,6 +169,26 @@ check_limactl_version() {
 
 check_limactl_version
 
+# Check for aria2c for faster downloads
+check_downloader() {
+    if ! command -v aria2c >/dev/null 2>&1; then
+        echo "" >&2
+        echo "    ╔══════════════════════════════════════════════════════════════════╗" >&2
+        echo "    ║ 🚀 For faster downloads, please install 'aria2c'                 ║" >&2
+        echo "    ╠══════════════════════════════════════════════════════════════════╣" >&2
+        echo "    ║ macOS: brew install aria2                                        ║" >&2
+        echo "    ║ Debian/Ubuntu: sudo apt-get install aria2                        ║" >&2
+        echo "    ║ RHEL/AlmaLinux: sudo dnf install aria2                           ║" >&2
+        echo "    ╚══════════════════════════════════════════════════════════════════╝" >&2
+        echo "" >&2
+        # Continue without error, as Lima will fall back to its default downloader
+    else
+        echo "    ✓ 'aria2c' found, downloads will be accelerated."
+    fi
+}
+
+check_downloader
+
 # Create fixture directory if it doesn't exist
 mkdir -p "$FIXTURE_DIR"
 
