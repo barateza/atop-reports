@@ -167,7 +167,7 @@ services:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.3.0" "7" "centos"
+    command: /tests/run-test.sh "2.7.1" "7" "centos"
     environment:
       - TZ=UTC
 

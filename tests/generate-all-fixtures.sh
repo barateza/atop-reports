@@ -74,7 +74,7 @@ get_os_config() {
             ;;
         centos)
             case "$os_version" in
-                7) echo "centos-7.yaml:2.3.0" ;;
+                7) echo "centos-7.yaml:2.7.1" ;;  # EPEL provides atop 2.7.1
                 *) echo "" ;;
             esac
             ;;
@@ -631,7 +631,7 @@ else
         "cloudlinux:9"       # atop 2.7.1 (Recommended)
         "almalinux:9"        # atop 2.7.1 (RHEL 9 proxy, Recommended)
         "ubuntu:22.04"       # atop 2.7.1 (Recommended)
-        "centos:7"           # atop 2.3.0 (CentOS 7 coverage)
+        "centos:7"           # atop 2.7.1 via EPEL (CentOS 7 coverage, ELS until Jan 2027)
         
         # [EXTENDED] Stage 2 - Additional Plesk OSes
         "ubuntu:20.04"       # atop 2.4.0
