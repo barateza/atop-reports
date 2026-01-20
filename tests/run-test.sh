@@ -52,8 +52,8 @@ case "$OS_FAMILY" in
         # Enable EPEL repository
         dnf config-manager --set-enabled epel 2>&1 | grep -v "Repository.*enabled" || true
         
-        # Install packages
-        if ! dnf install -y -q atop jq bc coreutils 2>&1 | grep -v "already installed"; then
+        # Install packages (skip coreutils - conflicts with coreutils-single in AlmaLinux 10)
+        if ! dnf install -y -q atop jq bc 2>&1 | grep -v "already installed"; then
             echo "ERROR: Failed to install packages" >&2
             exit 1
         fi
