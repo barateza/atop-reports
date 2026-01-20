@@ -239,6 +239,7 @@ vm_launch() {
     local template_file="$2"
     
     echo "    Booting VM (this may take time)..."
+    # Lima automatically uses aria2c for faster downloads if available in PATH.
     if ! limactl start --name="$vm_name" "$template_file" 2>&1; then
         echo "    ERROR: limactl start failed." >&2
         return 1
