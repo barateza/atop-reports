@@ -9,7 +9,7 @@ arch: "x86_64"
 images:
   - location: "https://download.rockylinux.org/pub/rocky/8/images/x86_64/Rocky-8-GenericCloud.latest.x86_64.qcow2"
     arch: "x86_64"
-    digest: "sha256:skip"  # Dynamic cloud image, skip verification
+
 
 cpus: 2
 memory: "2GiB"
