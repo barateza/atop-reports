@@ -7,8 +7,8 @@
 #   Manual QEMU Override (slow, ~5-10 min): 
 #     limactl start --set='.vmType="qemu"' --name=cloudlinux7-qemu tests/lima-templates/cloudlinux-7.yaml
 
-# Default: Auto-detect (VZ on native x86_64, guardrail skips on M2 unless manually overridden)
-vmType: "vz"
+# Default: QEMU for cross-platform compatibility
+vmType: "qemu"
 arch: "x86_64"
 
 images:

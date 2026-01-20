@@ -2,7 +2,7 @@
 # atop version: 2.11.1 (from EPEL)
 # Target: Plesk-supported AlmaLinux 10.x (Recommended)
 
-vmType: "vz"
+vmType: "qemu"
 os: "Linux"
 arch: "x86_64"
 
