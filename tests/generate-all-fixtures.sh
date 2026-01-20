@@ -460,6 +460,28 @@ generate_fixture() {
         return 0
     fi
     
+    # [GUARDRAIL] CloudLinux Download Speed - Skip Unless Native
+    # CloudLinux image downloads are extremely slow (even with aria2c)
+    # Skip unless running on CloudLinux host to avoid 30+ minute downloads
+    if [[ "$os_family" == "cloudlinux" ]]; then
+        if [ ! -f /etc/os-release ] || ! grep -qi "cloudlinux" /etc/os-release 2>/dev/null; then
+            echo "================================================================"
+            echo "⚠️  [SKIP] CloudLinux (Slow Download Speed)"
+            echo "   Reason: CloudLinux images download at ~150 KB/s even with aria2c"
+            echo "   Status: Skipped on non-CloudLinux hosts (30+ min per image)"
+            echo ""
+            echo "   To generate CloudLinux fixtures:"
+            echo "   - Run this script on a CloudLinux host, OR"
+            echo "   - Manually generate: bash tests/generate-all-fixtures.sh --os cloudlinux"
+            echo ""
+            echo "   Impact: CloudLinux fixture generation deferred for performance."
+            echo "================================================================"
+            return 0
+        else
+            echo "    Running on CloudLinux host - fixture generation enabled"
+        fi
+    fi
+    
     # Check if VM already exists
     local vm_exists=0
     if vm_exists "$vm_name"; then
