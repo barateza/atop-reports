@@ -39,21 +39,24 @@ case "$OS_FAMILY" in
         apt-get update -qq >/dev/null 2>&1
         apt-get install -y atop jq bc coreutils >/dev/null 2>&1
         ;;
-    almalinux)
-        # Enable EPEL for atop
-        dnf install -y -q epel-release >/dev/null 2>&1 || {
+    almalinux|rocky)
+        # Enable EPEL for atop (AlmaLinux & Rocky Linux)
+        # Install dnf-plugins-core first (required for dnf config-manager)
+        dnf install -y -q dnf-plugins-core 2>&1 | grep -v "already installed" || true
+        
+        # Install or update EPEL
+        dnf install -y -q epel-release 2>&1 | grep -v "already installed" || {
             echo "    ⚠️  EPEL installation failed, enabling existing repo..."
         }
-        dnf config-manager --set-enabled epel >/dev/null 2>&1 || true
-        dnf install -y -q atop jq bc coreutils >/dev/null 2>&1
-        ;;
-    rocky)
-        # Enable EPEL for atop (same as AlmaLinux)
-        dnf install -y -q epel-release >/dev/null 2>&1 || {
-            echo "    ⚠️  EPEL installation failed, enabling existing repo..."
-        }
-        dnf config-manager --set-enabled epel >/dev/null 2>&1 || true
-        dnf install -y -q atop jq bc coreutils >/dev/null 2>&1
+        
+        # Enable EPEL repository
+        dnf config-manager --set-enabled epel 2>&1 | grep -v "Repository.*enabled" || true
+        
+        # Install packages
+        if ! dnf install -y -q atop jq bc coreutils 2>&1 | grep -v "already installed"; then
+            echo "ERROR: Failed to install packages" >&2
+            exit 1
+        fi
         ;;
     centos|cloudlinux)
         # YUM-based systems (CentOS 7, CloudLinux)
