@@ -1,0 +1,51 @@
+# Rocky Linux 8 VM Template for atop Fixture Generation
+# atop version: 2.7.1 (from EPEL)
+# Target: Plesk-supported Rocky Linux 8.x (Extended)
+
+vmType: "vz"
+os: "Linux"
+arch: "x86_64"
+
+images:
+  - location: "https://download.rockylinux.org/pub/rocky/8/images/x86_64/Rocky-8-GenericCloud.latest.x86_64.qcow2"
+    arch: "x86_64"
+    digest: "sha256:skip"  # Dynamic cloud image, skip verification
+
+cpus: 2
+memory: "2GiB"
+disk: "12GiB"
+
+mounts:
+  - location: "~"
+    writable: false
+  - location: "/tmp/lima"
+    writable: true
+
+ssh:
+  localPort: 0
+  loadDotSSHPubKeys: true
+
+containerd:
+  system: false
+  user: false
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      
+      # Update package list
+      dnf makecache --refresh
+      
+      # Install EPEL repository (required for atop)
+      dnf install -y epel-release
+      
+      # Enable EPEL repository explicitly
+      dnf config-manager --set-enabled epel
+      
+      # Install atop
+      dnf install -y atop
+      
+      # Verify installation
+      atop -V || echo "atop installation verification failed"

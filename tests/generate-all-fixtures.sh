@@ -60,6 +60,15 @@ get_os_config() {
             case "$os_version" in
                 8) echo "almalinux-8.yaml:2.7.1" ;;
                 9) echo "almalinux-9.yaml:2.7.1" ;;
+                10) echo "almalinux-10.yaml:2.11.1" ;;
+                *) echo "" ;;
+            esac
+            ;;
+        rhel)
+            # RHEL uses AlmaLinux as proxy (identical packages, no auth needed)
+            case "$os_version" in
+                8) echo "almalinux-8.yaml:2.7.1" ;;
+                9) echo "almalinux-9.yaml:2.7.1" ;;
                 *) echo "" ;;
             esac
             ;;
@@ -72,6 +81,14 @@ get_os_config() {
         cloudlinux)
             case "$os_version" in
                 7) echo "cloudlinux-7.yaml:2.3.0" ;;
+                8) echo "cloudlinux-8.yaml:2.7.1" ;;
+                9) echo "cloudlinux-9.yaml:2.7.1" ;;
+                *) echo "" ;;
+            esac
+            ;;
+        rocky)
+            case "$os_version" in
+                8) echo "rocky-8.yaml:2.7.1" ;;
                 *) echo "" ;;
             esac
             ;;
@@ -374,12 +391,16 @@ generate_fixture() {
     # Action: Skips provisioning to prevent 60s+ timeout loop
     # Override: Manual QEMU emulation available (slow, ~5-10 min per fixture)
     current_arch=$(uname -m)
-    if [[ "$current_arch" == "arm64" ]] && [[ "$os_family" == "almalinux" || "$os_family" == "centos" || "$os_family" == "cloudlinux" ]]; then
+    if [[ "$current_arch" == "arm64" ]] && [[ "$os_family" == "almalinux" || "$os_family" == "centos" || "$os_family" == "cloudlinux" || "$os_family" == "rocky" || "$os_family" == "rhel" ]]; then
         local os_display="$os_family"
         local template_basename=""
         case "$os_family" in
             almalinux) 
                 os_display="AlmaLinux"
+                template_basename="almalinux-${os_version}.yaml"
+                ;;
+            rhel) 
+                os_display="RHEL"
                 template_basename="almalinux-${os_version}.yaml"
                 ;;
             centos) 
@@ -389,6 +410,10 @@ generate_fixture() {
             cloudlinux) 
                 os_display="CloudLinux"
                 template_basename="cloudlinux-${os_version}.yaml"
+                ;;
+            rocky) 
+                os_display="Rocky Linux"
+                template_basename="rocky-${os_version}.yaml"
                 ;;
         esac
         echo "================================================================"
@@ -557,13 +582,30 @@ elif [ -n "$SPECIFIC_VERSION" ]; then
     echo "ERROR: --version requires --os to be specified" >&2
     exit 1
 else
-    # All OS families and versions (prioritize Debian 12/13 first for critical testing)
-    # NOTE: Debian 10 skipped (EOL June 2024, duplicate atop 2.4.0 from Ubuntu 20.04)
-    # NOTE: AlmaLinux 8/9 deferred to v2.1 (upstream VZ driver timeout blocker on Apple Silicon)
+    # All OS families and versions for Plesk support
+    # [RECOMMENDED] - Priority for v2.0 release (Stage 1)
+    # [EXTENDED] - Additional coverage (Stage 2)
+    # NOTE: Debian 10 removed (EOL June 2024)
+    # NOTE: ARM support deferred to Stage 3 (Post-v2.0, optional via QEMU)
     OS_LIST=(
-        "debian:12" "debian:13"
-        "ubuntu:18.04" "ubuntu:20.04" "ubuntu:22.04" "ubuntu:24.04"
-        "debian:11"
+        # [RECOMMENDED] Stage 1 - v2.0 Release Priority
+        "ubuntu:24.04"       # atop 2.10.0 (Recommended)
+        "almalinux:10"       # atop 2.11.1 (Recommended, if available)
+        "debian:13"          # atop 2.11.1 (Recommended)
+        "cloudlinux:9"       # atop 2.7.1 (Recommended)
+        "almalinux:9"        # atop 2.7.1 (RHEL 9 proxy, Recommended)
+        "ubuntu:22.04"       # atop 2.7.1 (Recommended)
+        "centos:7"           # atop 2.3.0 (CentOS 7 coverage)
+        
+        # [EXTENDED] Stage 2 - Additional Plesk OSes
+        "ubuntu:20.04"       # atop 2.4.0
+        "ubuntu:18.04"       # atop 2.3.0
+        "almalinux:8"        # atop 2.7.1 (RHEL 8 proxy)
+        "debian:12"          # atop 2.8.1
+        "debian:11"          # atop 2.6.0
+        "cloudlinux:8"       # atop 2.7.1
+        "cloudlinux:7"       # atop 2.3.0
+        "rocky:8"            # atop 2.7.1
     )
 fi
 

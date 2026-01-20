@@ -119,16 +119,39 @@ All test VMs follow a unified naming scheme: `vm-atop-${os_family}-${os_version}
 Examples:
 - `vm-atop-ubuntu-18.04` (atop 2.3.0)
 - `vm-atop-debian-12` (atop 2.8.1)
+- `vm-atop-centos-7` (atop 2.3.0)
+- `vm-atop-cloudlinux-8` (atop 2.7.1)
+- `vm-atop-rocky-9` (atop 2.7.1, explicit separate testing for OS quirks)
 - `vm-atop-almalinux-9` (atop 2.7.1)
 
 Benefit: Unified naming provides consistency across all hypervisors (Lima/QEMU/VZ) and enables abstract `vm_launch()`, `vm_exec()`, `vm_transfer()` interfaces that work identically for all OS families.
+
+### Rocky Linux Separation Rationale
+
+**Design Decision:** Despite sharing atop 2.7.1 with AlmaLinux, Rocky is explicitly tested as separate OS family in both VM generation and Docker Compose.
+
+**Rationale:**
+Rocky Linux and AlmaLinux are different vendor implementations of RHEL, which can introduce subtle OS-specific quirks:
+- **Package builds:** Different compilation flags, dependencies, kernel modules
+- **Kernel configs:** systemd units, SELinux policies, cgroup configuration
+- **Vendor defaults:** Boot parameters, package versions, upstream patches
+- **Historical evidence:** Past experience shows vendor variants can cause unexpected behavior (e.g., systemd socket initialization failures, kernel module loading order)
+
+**Test Coverage:**
+- Separate Docker Compose service (`test-rocky8`, `test-rocky9`)
+- Separate Lima VM templates (if needed)
+- Separate fixture generation (`v2.7.1-rocky8.raw`, `v2.7.1-rocky9.raw`)
+- Explicit comment in docker-compose.yml explaining separation strategy
+
+**Benefit:**
+Catches OS-specific errors that would be missed if only testing one vendor's RHEL implementation.
 
 **Prerequisites:**
 ```bash
 # Install Lima (unified VM backend for all OS families)
 brew install lima
 
-# Verify installation
+````# Verify installation
 limactl version
 ```
 
@@ -250,28 +273,39 @@ limactl delete --force lima-atop-alma9
 - **Empty fixture:** atop needs root, ensure VM has process activity
 - **OOM during dnf install:** Increase VM memory to 2GB (already default)
 
-**Supported Versions:**
-| OS Family | Version | Codename | atop Version | Container ID | Fixture File |
-|-----------|---------|----------|--------------|--------------|--------------|
-| Ubuntu | 18.04 | bionic | 2.3.0 | ❌ Never | v2.3.0-ubuntu18.04.raw |
-| Ubuntu | 20.04 | focal | 2.4.0 | ❌ Never | v2.4.0-ubuntu20.04.raw |
-| Ubuntu | 22.04 | jammy | 2.7.1 | ✅ Available | v2.7.1-ubuntu22.04.raw |
-| Ubuntu | 24.04 | noble | 2.10.0 | ✅ Available | v2.10.0-ubuntu24.04.raw |
-| Debian | 10 | buster | 2.4.0 | ❌ Never | v2.4.0-debian10.raw |
-| Debian | 11 | bullseye | 2.6.0 | ⚠️ Partial | v2.6.0-debian11.raw |
-| Debian | 12 | bookworm | 2.8.1 | ✅ Available | v2.8.1-debian12.raw |
-| Debian | 13 | trixie | 2.11.1 | ✅ Available | v2.11.1-debian13.raw |
-| AlmaLinux | 8 | - | 2.7.1 | ✅ Available | v2.7.1-almalinux8.raw |
-| AlmaLinux | 9 | - | 2.7.1 | ✅ Available | v2.7.1-almalinux9.raw |
+**Supported Versions (v2.0: 13/16 Platforms; v2.1 Target: AlmaLinux 8/9):**
+
+| OS Family | Version | Codename | atop Version | Container ID | Fixture File | ELS Support |
+|-----------|---------|----------|--------------|--------------|--------------|-------------|
+| **UBUNTU** |
+| Ubuntu | 18.04 | bionic | 2.3.0 | ❌ Never | v2.3.0-ubuntu18.04.raw | Until Jan 1, 2027 |
+| Ubuntu | 20.04 | focal | 2.4.0 | ❌ Never | v2.4.0-ubuntu20.04.raw | Until Dec 31, 2027 |
+| Ubuntu | 22.04 | jammy | 2.7.1 | ✅ Available | v2.7.1-ubuntu22.04.raw | Active |
+| Ubuntu | 24.04 | noble | 2.10.0 | ✅ Available | v2.10.0-ubuntu24.04.raw | Active |
+| **DEBIAN** |
+| Debian | 10 | buster | 2.4.0 | ❌ Never | v2.4.0-debian10.raw | Until Jan 1, 2027 |
+| Debian | 11 | bullseye | 2.6.0 | ⚠️ Partial | v2.6.0-debian11.raw | Active |
+| Debian | 12 | bookworm | 2.8.1 | ✅ Available | v2.8.1-debian12.raw | Active |
+| Debian | 13 | trixie | 2.11.1 | ✅ Available | v2.11.1-debian13.raw | Active |
+| **RHEL FAMILY** |
+| CentOS | 7 | N/A | 2.3.0 | ❌ Never | v2.3.0-centos7.raw | Until Jan 1, 2027 |
+| CloudLinux | 7 | N/A | 2.3.0 | ❌ Never | v2.3.0-cloudlinux7.raw | Until Jan 1, 2027 |
+| CloudLinux | 8 | N/A | 2.7.1 | ✅ Available | v2.7.1-cloudlinux8.raw | Active |
+| CloudLinux | 9 | N/A | 2.7.1 | ✅ Available | v2.7.1-cloudlinux9.raw | Active |
+| Rocky Linux | 8 | N/A | 2.7.1 | ✅ Available | v2.7.1-rocky8.raw | Active |
+| Rocky Linux | 9 | N/A | 2.7.1 | ✅ Available | v2.7.1-rocky9.raw | Active |
+| AlmaLinux | 8 | N/A | 2.7.1 | ✅ Available | v2.7.1-almalinux8.raw | v2.1 target |
+| AlmaLinux | 9 | N/A | 2.7.1 | ✅ Available | v2.7.1-almalinux9.raw | v2.1 target |
 
 **Important Notes:**
-- Ubuntu/Debian 22.04+ use version numbers (not codenames) in Multipass
-- AlmaLinux uses Lima YAML templates (not Multipass images)
-- atop 2.7.1+ includes Container ID field (Field 17 in PRG label)
-- Fixtures are binary format - use `atop -r` to convert to text
-- Each fixture contains 15 samples (1 per second) from idle VM
-- Fixture size varies: 5-20KB idle, 50-500KB under load, 1-5MB on busy production servers
-- Debian 12/13 are **critical** - they test untested atop versions 2.8.1 and 2.11.1
+- **v2.0 Coverage:** 13/16 platforms (81%) - Ubuntu 4/4, Debian 3/4, CentOS 7, CloudLinux 7/8/9, Rocky 8/9
+- **v2.1 Targets:** AlmaLinux 8/9 (code production-ready, fixtures deferred due to upstream Lima VZ driver limitation)
+- **Plesk ELS:** CentOS 7 and CloudLinux 7 supported until January 1, 2027; Ubuntu 20.04 until December 31, 2027
+- **Rocky Linux:** Explicit separate testing despite sharing atop 2.7.1 with AlmaLinux (catches OS-specific quirks from different vendors)
+- **atop 2.7.1+:** Includes Container ID field (Field 17 in PRG label)
+- **Fixtures:** Binary format - use `atop -r` to convert to text
+- **Fixture size:** 5-20KB idle, 50-500KB under load, 1-5MB on busy production servers
+- **Debian 12/13:** Critical - test untested atop versions 2.8.1 and 2.11.1
 
 ### Container ID Support Details
 

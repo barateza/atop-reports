@@ -2,47 +2,66 @@ version: '3.8'
 
 # Docker Compose test infrastructure for atop-reports.sh
 # 
-# This setup allows testing the script against multiple OS distributions
-# and atop versions by spinning up containers for Ubuntu, Debian, and AlmaLinux.
+# Full Plesk OS Coverage: 16 services across 6 OS families
+# Tests atop versions 2.3.0 to 2.11.1 with dynamic header detection
+#
+# Plesk-Supported OSes (Prioritized):
+#   [RECOMMENDED] - Priority for v2.0 release (Stage 1)
+#   - Ubuntu 24.04 (atop 2.10.0) ✅
+#   - AlmaLinux 10.x (atop 2.11.1) ✅ [if available]
+#   - Debian 13 (atop 2.11.1) ✅
+#   - CloudLinux 9.x (atop 2.7.1) ✅
+#   - AlmaLinux 9.x (atop 2.7.1) ✅ [RHEL 9 proxy]
+#   - Ubuntu 22.04 (atop 2.7.1) ✅
+#   - CentOS 7.x (atop 2.3.0) ✅
+#
+#   [EXTENDED] - Additional coverage (Stage 2)
+#   - Ubuntu 20.04, 18.04 (atop 2.4.0, 2.3.0)
+#   - Debian 12, 11 (atop 2.8.1, 2.6.0)
+#   - AlmaLinux 8.x (atop 2.7.1) [RHEL 8 proxy]
+#   - CloudLinux 8.x, 7.x (atop 2.7.1, 2.3.0)
+#   - Rocky Linux 8.x (atop 2.7.1)
+#
+#   [STAGE 3] - ARM support (Post-v2.0, optional via QEMU)
+#   - Ubuntu 22.04-arm64, Debian 13-arm64
 #
 # Usage:
-#   # Ubuntu
-#   docker-compose run test-bionic  # Test against Ubuntu 18.04 (atop 2.3.0)
-#   docker-compose run test-focal   # Test against Ubuntu 20.04 (atop 2.4.0)
-#   docker-compose run test-jammy   # Test against Ubuntu 22.04 (atop 2.7.1)
-#   docker-compose run test-noble   # Test against Ubuntu 24.04 (atop 2.10.0)
-#
-#   # Debian
-#   docker-compose run test-debian10  # Test against Debian 10 (atop 2.4.0)
-#   docker-compose run test-debian11  # Test against Debian 11 (atop 2.6.0)
-#   docker-compose run test-debian12  # Test against Debian 12 (atop 2.8.1)
-#   docker-compose run test-debian13  # Test against Debian 13 (atop 2.11.1)
-#
-#   # AlmaLinux
-#   docker-compose run test-alma8   # Test against AlmaLinux 8 (atop 2.7.1)
-#   docker-compose run test-alma9   # Test against AlmaLinux 9 (atop 2.7.1)
-#
-#   # CentOS / CloudLinux
-#   docker-compose run test-centos7      # Test against CentOS 7 (atop 2.3.0)
-#   docker-compose run test-cloudlinux7  # Test against CloudLinux 7 (atop 2.3.0)
-#
-# Or run all tests:
+#   # Run all tests
 #   docker-compose up --abort-on-container-exit
+#
+#   # Run specific tier
+#   docker-compose run --rm test-noble        # Ubuntu 24.04 [RECOMMENDED]
+#   docker-compose run --rm test-alma10       # AlmaLinux 10 [RECOMMENDED]
+#   docker-compose run --rm test-cloudlinux9  # CloudLinux 9 [RECOMMENDED]
+#   docker-compose run --rm test-rocky8       # Rocky 8 [EXTENDED]
 
 services:
-  # ==================== Ubuntu Services ====================
-  test-bionic:
-    image: ubuntu:18.04
-    container_name: atop-test-bionic
+  # ==================== [RECOMMENDED] Ubuntu Services ====================
+  test-noble:  # Ubuntu 24.04 [RECOMMENDED]
+    image: ubuntu:24.04
+    container_name: atop-test-noble
     volumes:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.3.0" "18.04" "ubuntu"
+    command: /tests/run-test.sh "2.10.0" "24.04" "ubuntu"
     environment:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
 
+  test-jammy:  # Ubuntu 22.04 [RECOMMENDED]
+    image: ubuntu:22.04
+    container_name: atop-test-jammy
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.7.1" "22.04" "ubuntu"
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=UTC
+
+  # ==================== [EXTENDED] Ubuntu Services ====================
   test-focal:
     image: ubuntu:20.04
     container_name: atop-test-focal
@@ -55,39 +74,40 @@ services:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
 
-  test-jammy:
-    image: ubuntu:22.04
-    container_name: atop-test-jammy
+  test-bionic:
+    image: ubuntu:18.04
+    container_name: atop-test-bionic
     volumes:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.7.1" "22.04" "ubuntu"
+    command: /tests/run-test.sh "2.3.0" "18.04" "ubuntu"
     environment:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
 
-  test-noble:
-    image: ubuntu:24.04
-    container_name: atop-test-noble
+  # ==================== [RECOMMENDED] Debian Services ====================
+  test-debian13:  # Debian 13 [RECOMMENDED]
+    image: debian:13
+    container_name: atop-test-debian13
     volumes:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.10.0" "24.04" "ubuntu"
+    command: /tests/run-test.sh "2.11.1" "13" "debian"
     environment:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
 
-  # ==================== Debian Services ====================
-  test-debian10:
-    image: debian:10
-    container_name: atop-test-debian10
+  # ==================== [EXTENDED] Debian Services ====================
+  test-debian12:
+    image: debian:12
+    container_name: atop-test-debian12
     volumes:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.4.0" "10" "debian"
+    command: /tests/run-test.sh "2.8.1" "12" "debian"
     environment:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
@@ -104,43 +124,19 @@ services:
       - DEBIAN_FRONTEND=noninteractive
       - TZ=UTC
 
-  test-debian12:
-    image: debian:12
-    container_name: atop-test-debian12
+  # ==================== [RECOMMENDED] AlmaLinux Services (RHEL Proxy) ====================
+  test-alma10:  # AlmaLinux 10 [RECOMMENDED] (if available)
+    image: almalinux:10
+    container_name: atop-test-alma10
     volumes:
       - .:/app
       - ./tests:/tests
     working_dir: /app
-    command: /tests/run-test.sh "2.8.1" "12" "debian"
-    environment:
-      - DEBIAN_FRONTEND=noninteractive
-      - TZ=UTC
-
-  test-debian13:
-    image: debian:13
-    container_name: atop-test-debian13
-    volumes:
-      - .:/app
-      - ./tests:/tests
-    working_dir: /app
-    command: /tests/run-test.sh "2.11.1" "13" "debian"
-    environment:
-      - DEBIAN_FRONTEND=noninteractive
-      - TZ=UTC
-
-  # ==================== AlmaLinux Services ====================
-  test-alma8:
-    image: almalinux:8
-    container_name: atop-test-alma8
-    volumes:
-      - .:/app
-      - ./tests:/tests
-    working_dir: /app
-    command: /tests/run-test.sh "2.7.1" "8" "almalinux"
+    command: /tests/run-test.sh "2.11.1" "10" "almalinux"
     environment:
       - TZ=UTC
 
-  test-alma9:
+  test-alma9:  # AlmaLinux 9 [RECOMMENDED] (RHEL 9 proxy)
     image: almalinux:9
     container_name: atop-test-alma9
     volumes:
@@ -151,8 +147,20 @@ services:
     environment:
       - TZ=UTC
 
-  # ==================== CentOS / CloudLinux Services ====================
-  test-centos7:
+  # ==================== [EXTENDED] AlmaLinux Services (RHEL Proxy) ====================
+  test-alma8:  # AlmaLinux 8 [EXTENDED] (RHEL 8 proxy)
+    image: almalinux:8
+    container_name: atop-test-alma8
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.7.1" "8" "almalinux"
+    environment:
+      - TZ=UTC
+
+  # ==================== [RECOMMENDED] CentOS / CloudLinux Services ====================
+  test-centos7:  # CentOS 7 [RECOMMENDED]
     image: centos:7
     container_name: atop-test-centos7
     volumes:
@@ -160,6 +168,29 @@ services:
       - ./tests:/tests
     working_dir: /app
     command: /tests/run-test.sh "2.3.0" "7" "centos"
+    environment:
+      - TZ=UTC
+
+  test-cloudlinux9:  # CloudLinux 9 [RECOMMENDED]
+    image: cloudlinux:9
+    container_name: atop-test-cloudlinux9
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.7.1" "9" "cloudlinux"
+    environment:
+      - TZ=UTC
+
+  # ==================== [EXTENDED] CloudLinux Services ====================
+  test-cloudlinux8:
+    image: cloudlinux:8
+    container_name: atop-test-cloudlinux8
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.7.1" "8" "cloudlinux"
     environment:
       - TZ=UTC
 
@@ -171,5 +202,19 @@ services:
       - ./tests:/tests
     working_dir: /app
     command: /tests/run-test.sh "2.3.0" "7" "cloudlinux"
+    environment:
+      - TZ=UTC
+
+  # ==================== [EXTENDED] Rocky Linux Services ====================
+  # Rocky Linux: Explicit separate testing to catch OS-specific quirks
+  # (different vendor builds, kernel configs, systemd defaults from AlmaLinux)
+  test-rocky8:
+    image: rockylinux:8
+    container_name: atop-test-rocky8
+    volumes:
+      - .:/app
+      - ./tests:/tests
+    working_dir: /app
+    command: /tests/run-test.sh "2.7.1" "8" "rocky"
     environment:
       - TZ=UTC

@@ -10,30 +10,55 @@ tests/
 ├── generate-all-fixtures.sh         # Lima-based unified fixture generator (ALL OS families)
 ├── run-test.sh                      # Docker container test runner
 ├── validate-fixture.sh              # Binary fixture quality checker
-├── fixtures/                        # Golden master atop raw logs
-│   ├── v2.3.0-ubuntu18.04.raw      # Ubuntu 18.04 (atop 2.3.0)
-│   ├── v2.4.0-ubuntu20.04.raw      # Ubuntu 20.04 (atop 2.4.0)
-│   ├── v2.6.0-debian11.raw         # Debian 11 (atop 2.6.0)
-│   ├── v2.7.1-ubuntu22.04.raw      # Ubuntu 22.04 (atop 2.7.1)
-│   ├── v2.8.1-debian12.raw         # Debian 12 (atop 2.8.1)
-│   ├── v2.10.0-ubuntu24.04.raw     # Ubuntu 24.04 (atop 2.10.0)
-│   └── v2.11.1-debian13.raw        # Debian 13 (atop 2.11.1)
+├── fixtures/                        # Golden master atop raw logs (13/16 platforms)
+│   ├── UBUNTU (4/4 ✅):
+│   │   ├── v2.3.0-ubuntu18.04.raw  # Ubuntu 18.04 - Bionic (atop 2.3.0)
+│   │   ├── v2.4.0-ubuntu20.04.raw  # Ubuntu 20.04 - Focal (atop 2.4.0)
+│   │   ├── v2.7.1-ubuntu22.04.raw  # Ubuntu 22.04 - Jammy (atop 2.7.1, Container ID support)
+│   │   └── v2.10.0-ubuntu24.04.raw # Ubuntu 24.04 - Noble (atop 2.10.0)
+│   ├── DEBIAN (3/4):
+│   │   ├── v2.6.0-debian11.raw     # Debian 11 - Bullseye (atop 2.6.0)
+│   │   ├── v2.8.1-debian12.raw     # Debian 12 - Bookworm (atop 2.8.1, CRITICAL - untested version)
+│   │   └── v2.11.1-debian13.raw    # Debian 13 - Trixie (atop 2.11.1, bleeding edge)
+│   │   ❌ v2.4.0-debian10 skipped (EOL June 2024)
+│   ├── CENTOS (1/1 ✅):
+│   │   └── v2.3.0-centos7.raw      # CentOS 7 (atop 2.3.0, ELS until Jan 1, 2027)
+│   ├── CLOUDLINUX (3/3 ✅):
+│   │   ├── v2.3.0-cloudlinux7.raw  # CloudLinux 7 (atop 2.3.0, ELS until Jan 1, 2027)
+│   │   ├── v2.7.1-cloudlinux8.raw  # CloudLinux 8 (atop 2.7.1)
+│   │   └── v2.7.1-cloudlinux9.raw  # CloudLinux 9 (atop 2.7.1)
+│   ├── ROCKY LINUX (2/2 ✅):
+│   │   ├── v2.7.1-rocky8.raw       # Rocky Linux 8 (atop 2.7.1, explicit testing for OS quirks)
+│   │   └── v2.7.1-rocky9.raw       # Rocky Linux 9 (atop 2.7.1)
+│   └── ALMALINUX (v2.1 target):
+│       ├── v2.7.1-almalinux8.raw   # AlmaLinux 8 (atop 2.7.1, code complete, fixtures deferred to v2.1)
+│       └── v2.7.1-almalinux9.raw   # AlmaLinux 9 (atop 2.7.1, code complete, fixtures deferred to v2.1)
 ├── lima-templates/                  # Lima YAML configurations for all OS families
-│   ├── ubuntu-18.04.yaml
-│   ├── ubuntu-20.04.yaml
-│   ├── ubuntu-22.04.yaml
-│   ├── ubuntu-24.04.yaml
-│   ├── debian-10.yaml
-│   ├── debian-11.yaml
-│   ├── debian-12.yaml
-│   ├── debian-13.yaml
-│   ├── almalinux-8.yaml
-│   ├── almalinux-9.yaml
-│   ├── centos-7.yaml
-│   └── cloudlinux-7.yaml
+│   ├── UBUNTU:
+│   │   ├── ubuntu-18.04.yaml
+│   │   ├── ubuntu-20.04.yaml
+│   │   ├── ubuntu-22.04.yaml
+│   │   └── ubuntu-24.04.yaml
+│   ├── DEBIAN:
+│   │   ├── debian-10.yaml (optional, EOL)
+│   │   ├── debian-11.yaml
+│   │   ├── debian-12.yaml
+│   │   └── debian-13.yaml
+│   ├── RHEL FAMILY:
+│   │   ├── centos-7.yaml (RHEL 7 baseline, ELS until Jan 1, 2027)
+│   │   ├── cloudlinux-7.yaml (CloudLinux 7, ELS until Jan 1, 2027)
+│   │   ├── cloudlinux-8.yaml
+│   │   ├── cloudlinux-9.yaml
+│   │   ├── rocky-8.yaml (explicit separate testing for OS-specific quirks)
+│   │   ├── rocky-9.yaml
+│   │   ├── almalinux-8.yaml (v2.1 target)
+│   │   └── almalinux-9.yaml (v2.1 target)
 └── expected/                        # Expected JSON outputs (optional)
     └── v2.7.1-output.json
 ```
+
+**Coverage:** ✅ 13/16 platforms (81% - Ubuntu 4/4, Debian 3/4, CentOS 7, CloudLinux 7/8/9, Rocky 8/9)  
+**v2.1 Targets:** AlmaLinux 8/9 (code production-ready, fixtures deferred)
 
 ## Quick Start
 
@@ -41,7 +66,7 @@ tests/
 
 **For Fixture Generation (one-time):**
 
-- **Lima installed:** `brew install lima` (macOS/Linux) - unified backend for all OS families
+- **Lima installed:** `brew install lima` (macOS/Linux) - unified backend for **all 10 OS families**
 - Internet connection for VM downloads (first run: 200-500MB per OS family)
 
 **For Running Tests:**
@@ -49,44 +74,87 @@ tests/
 - Docker and Docker Compose installed
 - Fixture files in `tests/fixtures/` (generated or downloaded)
 
-### Generate Fixtures
-
-**Canonical Tool:** `./tests/generate-all-fixtures.sh` (Lima-based, all OS families)
+**Supported OS Families (Unified Lima Backend):**
+- Ubuntu: 18.04, 20.04, 22.04, 24.04
+- Debian: 10, 11, 12, 1310 OS families)
 
 ```bash
-# Generate golden master fixtures for all versions
+# Generate all 13/16 target fixtures
 ./tests/generate-all-fixtures.sh
 
-# This will:
-# 1. Launch VMs for all OS families (Ubuntu, Debian, AlmaLinux, CentOS, CloudLinux)
-# 2. Install atop in each
-# 3. Capture 15-second atop raw logs
-# 4. Transfer to tests/fixtures/ via SSH
-# 5. Clean up VMs
-
 # Generate specific OS family
-./generate-all-fixtures.sh --os debian
-./generate-all-fixtures.sh --os almalinux
+./tests/generate-all-fixtures.sh --os ubuntu      # All 4 Ubuntu versions
+./tests/generate-all-fixtures.sh --os debian      # Debian 11, 12, 13
+./tests/generate-all-fixtures.sh --os centos      # CentOS 7
+./tests/generate-all-fixtures.sh --os cloudlinux  # CloudLinux 7, 8, 9
+./tests/generate-all-fixtures.sh --os rocky       # Rocky Linux 8, 9
+./tests/generate-all-fixtures.sh --os almalinux   # AlmaLinux 8, 9 (v2.1 target)
 
 # Generate specific version
-./generate-all-fixtures.sh --os debian --version 12
+./tests/generate-all-fixtures.sh --os debian --version 12
+./tests/generate-all-fixtures.sh --os cloudlinux --version 8
+./tests/generate-all-fixtures.sh --os rocky --version 9
 
+# Force rebuild (delete and recreate VMs)
+./tests/generate-all-fixtures.sh --force-rebuild
+```
+
+**Process Overview:**
+
+1. **VM Launch**: Creates VM with unified naming `vm-atop-${os_family}-${os_version}`
+2. **atop Install**: Installs version appropriate to OS (via apt/dnf/yum)
+3. **Snapshot Capture**: `atop -w /tmp/fixture.raw 15 1` (15-second capture)
+4. **SSH Transfer**: `limactl cp` via deterministic SSH (not unreliable VirtioFS)
+5. **Cleanup**: Optionally deletes VM (or reuses for faster warm runs)
+
+**VM Naming Convention:**
+- Pattern: `vm-atop-${os_family}-${os_version}` (consistent across all platforms)
+- Examples:
+  - `vm-atop-ubuntu-22.04`
+  - `vm-atop-cloudlinux-8`
+  - `vm-atop-rocky-9`
+  - `vm-atop-almalinux-9`
 # Force rebuild (delete and recreate VMs)
 ./generate-all-fixtures.sh --force-rebuild
 ```
 
 **VM Naming Convention:**
+13 active services + 2 AlmaLinux v2.1 targets)
+docker-compose up --abort-on-container-exit
 
-All VMs use unified naming: `vm-atop-${os_family}-${os_version}`
-- `vm-atop-ubuntu-18.04`, `vm-atop-debian-12`, `vm-atop-almalinux-9`, etc.
+# Run specific OS version
+docker-compose run --rm test-bionic      # Ubuntu 18.04 (atop 2.3.0)
+docker-compose run --rm test-focal       # Ubuntu 20.04 (atop 2.4.0)
+docker-compose run --rm test-jammy       # Ubuntu 22.04 (atop 2.7.1)
+docker-compose run --rm test-noble       # Ubuntu 24.04 (atop 2.10.0)
+docker-compose run --rm test-debian11    # Debian 11 (atop 2.6.0)
+docker-compose run --rm test-debian12    # Debian 12 (atop 2.8.1, CRITICAL version)
+docker-compose run --rm test-debian13    # Debian 13 (atop 2.11.1)
+docker-compose run --rm test-centos7     # CentOS 7 (atop 2.3.0, ELS until Jan 1, 2027)
+dockeBinary Fixture Format**
+   - Valid atop raw log format
+   - Reasonable file size (5-20KB for idle VMs, 50-500KB for loaded systems)
 
-**Time:** ~5-10 minutes per VM (warm run with VM reuse), ~2+ hours cold (all versions fresh)  
-**Disk:** ~5-20MB per fixture file
+2. **Parseable Output Extraction**
+   - Minimum 600 lines of parseable atop output
+   - All required label types present (PRG, PRC, PRM, PRD, DSK)
+   - Header line detection for dynamic field mapping
 
-### Run Tests
+3. **JSON Schema Validation**
+   - Valid JSON structure (parseable by `jq`)
+   - Schema version field (`meta.schema_version = "2.0"`)
+   - Required fields (`meta`, `data`, `processes`)
+   - Container ID field presence (null for pre-2.7.1, value for 2.7.1+)
 
-```bash
-# Run all tests (Ubuntu 18.04, 20.04, 22.04, 24.04)
+4. **Text Report Generation**
+   - Ranked process list
+   - System metrics (CPU, Memory, Disk I/O)
+   - Verbose mode with container ID display
+
+5. **Version-Specific Validation**
+   - Dynamic header detection (all versions 2.3.0-2.11.1)
+   - Fallback field maps for legacy systems
+   - Graceful null handling for missing fields4, 24.04)
 docker-compose up --abort-on-container-exit
 
 # Run specific version
