@@ -1,20 +1,37 @@
 # Test Infrastructure
 
-This directory contains the test infrastructure for validating `atop-reports.sh` across multiple atop versions (2.3.0 to 2.10.0).
+This directory contains the test infrastructure for validating `atop-reports.sh` across multiple atop versions (2.3.0 to 2.11.1).
 
 ## Directory Structure
 
 ```
 tests/
-├── README.md                    # This file
-├── generate-fixtures.sh         # Multipass-based fixture generator
-├── run-test.sh                  # Docker container test runner
-├── fixtures/                    # Golden master atop raw logs
-│   ├── v2.3.0-ubuntu18.04.raw  # Ubuntu 18.04 (atop 2.3.0)
-│   ├── v2.4.0-ubuntu20.04.raw  # Ubuntu 20.04 (atop 2.4.0)
-│   ├── v2.7.1-ubuntu22.04.raw  # Ubuntu 22.04 (atop 2.7.1)
-│   └── v2.10.0-ubuntu24.04.raw # Ubuntu 24.04 (atop 2.10.0)
-└── expected/                    # Expected JSON outputs (optional)
+├── README.md                        # This file
+├── generate-all-fixtures.sh         # Lima-based unified fixture generator (ALL OS families)
+├── run-test.sh                      # Docker container test runner
+├── validate-fixture.sh              # Binary fixture quality checker
+├── fixtures/                        # Golden master atop raw logs
+│   ├── v2.3.0-ubuntu18.04.raw      # Ubuntu 18.04 (atop 2.3.0)
+│   ├── v2.4.0-ubuntu20.04.raw      # Ubuntu 20.04 (atop 2.4.0)
+│   ├── v2.6.0-debian11.raw         # Debian 11 (atop 2.6.0)
+│   ├── v2.7.1-ubuntu22.04.raw      # Ubuntu 22.04 (atop 2.7.1)
+│   ├── v2.8.1-debian12.raw         # Debian 12 (atop 2.8.1)
+│   ├── v2.10.0-ubuntu24.04.raw     # Ubuntu 24.04 (atop 2.10.0)
+│   └── v2.11.1-debian13.raw        # Debian 13 (atop 2.11.1)
+├── lima-templates/                  # Lima YAML configurations for all OS families
+│   ├── ubuntu-18.04.yaml
+│   ├── ubuntu-20.04.yaml
+│   ├── ubuntu-22.04.yaml
+│   ├── ubuntu-24.04.yaml
+│   ├── debian-10.yaml
+│   ├── debian-11.yaml
+│   ├── debian-12.yaml
+│   ├── debian-13.yaml
+│   ├── almalinux-8.yaml
+│   ├── almalinux-9.yaml
+│   ├── centos-7.yaml
+│   └── cloudlinux-7.yaml
+└── expected/                        # Expected JSON outputs (optional)
     └── v2.7.1-output.json
 ```
 
@@ -24,8 +41,7 @@ tests/
 
 **For Fixture Generation (one-time):**
 
-- **Ubuntu:** Multipass installed: `brew install multipass` (macOS)
-- **Debian/AlmaLinux:** Lima installed: `brew install lima` (macOS)
+- **Lima installed:** `brew install lima` (macOS/Linux) - unified backend for all OS families
 - Internet connection for VM downloads (first run: 200-500MB per OS family)
 
 **For Running Tests:**
@@ -35,19 +51,36 @@ tests/
 
 ### Generate Fixtures
 
+**Canonical Tool:** `./tests/generate-all-fixtures.sh` (Lima-based, all OS families)
+
 ```bash
 # Generate golden master fixtures for all versions
-./tests/generate-fixtures.sh
+./tests/generate-all-fixtures.sh
 
 # This will:
-# 1. Launch Ubuntu VMs (18.04, 20.04, 22.04, 24.04)
+# 1. Launch VMs for all OS families (Ubuntu, Debian, AlmaLinux, CentOS, CloudLinux)
 # 2. Install atop in each
 # 3. Capture 15-second atop raw logs
-# 4. Transfer to tests/fixtures/
+# 4. Transfer to tests/fixtures/ via SSH
 # 5. Clean up VMs
+
+# Generate specific OS family
+./generate-all-fixtures.sh --os debian
+./generate-all-fixtures.sh --os almalinux
+
+# Generate specific version
+./generate-all-fixtures.sh --os debian --version 12
+
+# Force rebuild (delete and recreate VMs)
+./generate-all-fixtures.sh --force-rebuild
 ```
 
-**Time:** ~10-15 minutes per VM (4 VMs = 40-60 minutes total)  
+**VM Naming Convention:**
+
+All VMs use unified naming: `vm-atop-${os_family}-${os_version}`
+- `vm-atop-ubuntu-18.04`, `vm-atop-debian-12`, `vm-atop-almalinux-9`, etc.
+
+**Time:** ~5-10 minutes per VM (warm run with VM reuse), ~2+ hours cold (all versions fresh)  
 **Disk:** ~5-20MB per fixture file
 
 ### Run Tests
