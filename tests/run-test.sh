@@ -41,8 +41,24 @@ case "$OS_FAMILY" in
         ;;
     almalinux)
         # Enable EPEL for atop
-        dnf install -y -q epel-release >/dev/null 2>&1 || true
+        dnf install -y -q epel-release >/dev/null 2>&1 || {
+            echo "    ⚠️  EPEL installation failed, enabling existing repo..."
+        }
+        dnf config-manager --set-enabled epel >/dev/null 2>&1 || true
         dnf install -y -q atop jq bc coreutils >/dev/null 2>&1
+        ;;
+    rocky)
+        # Enable EPEL for atop (same as AlmaLinux)
+        dnf install -y -q epel-release >/dev/null 2>&1 || {
+            echo "    ⚠️  EPEL installation failed, enabling existing repo..."
+        }
+        dnf config-manager --set-enabled epel >/dev/null 2>&1 || true
+        dnf install -y -q atop jq bc coreutils >/dev/null 2>&1
+        ;;
+    centos|cloudlinux)
+        # YUM-based systems (CentOS 7, CloudLinux)
+        yum install -y -q epel-release >/dev/null 2>&1 || true
+        yum install -y -q atop jq bc >/dev/null 2>&1
         ;;
     *)
         echo "ERROR: Unknown OS family: $OS_FAMILY" >&2
