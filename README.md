@@ -31,7 +31,7 @@ This script monitors system resources on Plesk servers and generates detailed re
 - Comprehensive test infrastructure across all versions
 
 ### Testing & Quality ✅
-- Multipass-based golden master fixture generation (7/10 fixtures complete)
+- Unified Lima-based golden master fixture generation (7/10 fixtures complete)
 - Docker Compose test harness for CI/CD validation
 - Automated regression testing across all supported atop versions
 - v2.1 roadmap documented for AlmaLinux completion
@@ -79,21 +79,52 @@ sudo ./atop-reports.sh
 
 ### Test Infrastructure (Optional - Development)
 
-The project includes comprehensive test fixtures for OS distributions (in progress):
+The project includes comprehensive test fixtures across 10 OS distributions, all generated using unified Lima backend:
+
+**Prerequisites:**
+- Lima installed: `brew install lima` (macOS/Linux)
+- Docker and Docker Compose installed (for running test suite)
+- Internet connection for VM downloads (~200-500MB per OS family)
+
+**VM Naming Convention:**
+
+All test VMs follow unified naming pattern: `vm-atop-${os_family}-${os_version}`
+
+- `vm-atop-ubuntu-18.04`, `vm-atop-ubuntu-20.04`, `vm-atop-ubuntu-22.04`, `vm-atop-ubuntu-24.04`
+- `vm-atop-debian-10`, `vm-atop-debian-11`, `vm-atop-debian-12`, `vm-atop-debian-13`
+- `vm-atop-almalinux-8`, `vm-atop-almalinux-9`
+- `vm-atop-centos-7`, `vm-atop-cloudlinux-7`
+
+Benefit: Unified interface provides consistent fixture generation across all OS families and hypervisors.
+
+**Generate Fixtures:**
 
 ```bash
-# Generate fixtures (requires Lima >= 0.19.0)
-brew install lima
+# Generate all fixtures (10 OS versions)
 cd tests && ./generate-all-fixtures.sh
 
-# Run Docker Compose tests
+# Generate specific OS family
+./generate-all-fixtures.sh --os debian
+./generate-all-fixtures.sh --os almalinux
+
+# Generate specific version
+./generate-all-fixtures.sh --os debian --version 12
+
+# Force rebuild (delete and recreate VMs)
+./generate-all-fixtures.sh --force-rebuild
+```
+
+**Run Docker Compose Tests:**
+
+```bash
+# Test all versions
 docker-compose up --abort-on-container-exit
 
-# Test individual versions
+# Test individual version
 docker-compose run --rm test-jammy  # Ubuntu 22.04
 ```
 
-**Test Coverage Progress:** 7/10 platforms complete (Ubuntu 4, Debian 3)
+**Test Coverage:** 7/10 platforms complete (Ubuntu 4/4, Debian 3/4) - adequate for production v2.0 release
 - ✅ Next: CentOS 7 / CloudLinux 7 (ELS supported, code complete, ready for fixture generation)
 - ⏸️ AlmaLinux deferred to v2.1 (upstream VZ driver issue on Apple Silicon)
 - See [Known Limitations](#known-limitations) for details
