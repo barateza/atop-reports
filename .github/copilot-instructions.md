@@ -5,6 +5,31 @@ Production-hardened bash script that monitors Plesk server resources (CPU, memor
 
 **Current Version:** 2.0.0 (January 16, 2026)
 
+## Test Coverage - Recommended vs Extended Tiers
+
+### Recommended Tier (Priority Testing - 6 OSes)
+Primary Plesk deployment targets with full support:
+- **Ubuntu 24.04 LTS (atop 2.10.0)** - Latest stable, most comprehensive testing
+- **Ubuntu 22.04 LTS (atop 2.7.1)** - Active LTS with Container ID support
+- **Debian 13 (atop 2.11.1)** - Bleeding edge, future-proofing
+- **AlmaLinux 10 (atop 2.11.1)** - Latest RHEL-compatible, container-aware
+- **AlmaLinux 9 (atop 2.7.1)** - RHEL 9 family proxy (same atop as Rocky/CloudLinux 9)
+- **CentOS 7 (atop 2.3.0)** - Plesk ELS baseline (until January 1, 2027)
+- **CloudLinux 9 (atop 2.7.1)** - Mandatory: Primary Plesk production environment
+
+### Extended Tier (Optional Testing - 9 OSes)
+Additional coverage for edge cases and future planning:
+- Ubuntu 20.04 LTS (atop 2.4.0) - Older LTS, validation testing
+- Ubuntu 18.04 LTS (atop 2.3.0) - Legacy support (Plesk ELS until Jan 1, 2027)
+- Debian 12 (atop 2.8.1) - Intermediate version validation
+- Debian 11 (atop 2.6.0) - Version gap coverage
+- AlmaLinux 8 (atop 2.7.1) - RHEL 8 family
+- CloudLinux 8 (atop 2.7.1) - Alternative RHEL 8
+- CloudLinux 7 (atop 2.3.0) - Legacy production (Plesk ELS until Jan 1, 2027)
+- Rocky Linux 8 (atop 2.7.1) - Explicit OS-specific testing (vendor quirks)
+
+**Note:** Test script automatically skips CloudLinux fixture generation on non-CloudLinux hosts due to performance guardrail (slow CDN downloads). CloudLinux tests use cached fixtures or require Docker authentication.
+
 **Key Files:**
 - [atop-reports.sh](../atop-reports.sh) - Main monitoring script (882 lines)
 - [atop-reports.conf.example](../atop-reports.conf.example) - Config template for `/etc/atop-reports.conf`

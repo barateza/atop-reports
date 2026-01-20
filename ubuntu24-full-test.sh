@@ -62,8 +62,8 @@ echo ""
 # Step 3: Generate fixtures
 echo -e "${YELLOW}[3/5] Generating fixtures (this will take 2-4 hours)...${NC}"
 echo -e "${BLUE}Stages:${NC}"
-echo -e "  ${GREEN}[RECOMMENDED]${NC} Stage 1: 6 OSes (Ubuntu 24/22, Debian 13, AlmaLinux 10/9, CentOS 7)"
-echo -e "  ${BLUE}[EXTENDED]${NC}   Stage 2: 10 OSes (Ubuntu 20/18, Debian 12/11, AlmaLinux 8, CloudLinux 9/8/7, Rocky 8)"
+echo -e "  ${GREEN}[RECOMMENDED]${NC} Stage 1: 7 OSes (Ubuntu 24/22, Debian 13, AlmaLinux 10/9, CentOS 7, CloudLinux 9)"
+echo -e "  ${BLUE}[EXTENDED]${NC}   Stage 2: 9 OSes (Ubuntu 20/18, Debian 12/11, AlmaLinux 8, CloudLinux 8/7, Rocky 8)"
 echo ""
 
 cd tests
@@ -94,8 +94,8 @@ echo -e "${YELLOW}[4/5] Verifying generated fixtures...${NC}"
 FIXTURE_COUNT=$(ls tests/fixtures/*.raw 2>/dev/null | wc -l)
 echo -e "${BLUE}Total fixtures: $FIXTURE_COUNT${NC}"
 
-if [ "$FIXTURE_COUNT" -lt 6 ]; then
-    echo -e "${RED}WARNING: Expected at least 6 fixtures (Recommended tier)${NC}"
+if [ "$FIXTURE_COUNT" -lt 7 ]; then
+    echo -e "${RED}WARNING: Expected at least 7 fixtures (Recommended tier)${NC}"
     echo -e "${RED}Found: $FIXTURE_COUNT${NC}"
     echo -e "${YELLOW}Continuing anyway...${NC}"
 else
@@ -132,6 +132,7 @@ case $REPLY in
         docker-compose run --rm test-noble       # Ubuntu 24.04
         docker-compose run --rm test-alma10      # AlmaLinux 10
         docker-compose run --rm test-debian13    # Debian 13
+        docker-compose run --rm test-cloudlinux9 # CloudLinux 9
         docker-compose run --rm test-alma9       # AlmaLinux 9 (RHEL 9 proxy)
         docker-compose run --rm test-jammy       # Ubuntu 22.04
         docker-compose run --rm test-centos7     # CentOS 7
