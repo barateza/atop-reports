@@ -159,7 +159,7 @@ services:
     environment:
       - TZ=UTC
 
-  # ==================== [RECOMMENDED] CentOS / CloudLinux Services ====================
+  # ==================== [RECOMMENDED] CentOS Services ====================
   test-centos7:  # CentOS 7 [RECOMMENDED]
     image: centos:7
     container_name: atop-test-centos7
@@ -171,7 +171,9 @@ services:
     environment:
       - TZ=UTC
 
-  test-cloudlinux9:  # CloudLinux 9 [RECOMMENDED]
+  # ==================== [EXTENDED] CloudLinux Services ====================
+  # Note: CloudLinux images require authentication or local fixtures only
+  test-cloudlinux9:  # CloudLinux 9 [EXTENDED]
     image: cloudlinux:9
     container_name: atop-test-cloudlinux9
     volumes:
@@ -182,7 +184,6 @@ services:
     environment:
       - TZ=UTC
 
-  # ==================== [EXTENDED] CloudLinux Services ====================
   test-cloudlinux8:
     image: cloudlinux:8
     container_name: atop-test-cloudlinux8
