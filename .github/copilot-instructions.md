@@ -108,9 +108,29 @@ grep '^cpu ' /proc/stat  # Sample 2
 
 ### Automated Fixture Generation (Multi-OS Support)
 
-The project uses golden master fixtures for cross-version testing across **10 OS distributions** (Ubuntu, Debian, AlmaLinux). These fixtures are binary atop snapshots captured from VMs using a **hybrid strategy**: Multipass for Debian-based systems (Ubuntu/Debian) and Lima for RHEL-based systems (AlmaLinux).
+The project uses golden master fixtures for cross-version testing across **10 OS distributions** (Ubuntu, Debian, AlmaLinux). These fixtures are binary atop snapshots captured from VMs using a **unified Lima backend** for all OS families.
 
 **Fixture Generation Script:** `tests/generate-all-fixtures.sh`
+
+**VM Naming Convention:**
+
+All test VMs follow a unified naming scheme: `vm-atop-${os_family}-${os_version}`
+
+Examples:
+- `vm-atop-ubuntu-18.04` (atop 2.3.0)
+- `vm-atop-debian-12` (atop 2.8.1)
+- `vm-atop-almalinux-9` (atop 2.7.1)
+
+Benefit: Unified naming provides consistency across all hypervisors (Lima/QEMU/VZ) and enables abstract `vm_launch()`, `vm_exec()`, `vm_transfer()` interfaces that work identically for all OS families.
+
+**Prerequisites:**
+```bash
+# Install Lima (unified VM backend for all OS families)
+brew install lima
+
+# Verify installation
+limactl version
+```
 
 **Full Workflow (30 minutes warm, 2+ hours cold):**
 ```bash
@@ -131,33 +151,22 @@ cd /path/to/atop-reports
 ```
 
 **What happens internally:**
-1. **Tool Selection:** Routes to Multipass (Ubuntu/Debian) or Lima (AlmaLinux)
+1. **Unified Interface:** Routes all OS families through identical `vm_launch()`, `vm_exec()`, `vm_transfer()` abstractions
 2. **VM Launch:** Creates VMs with 2GB RAM / 2 CPUs (prevents OOM)
 3. **VM Reuse Check:** Prompts to reuse existing VMs (5 min warm run)
-4. **Package Installation:** 
+4. **Package Installation:**
    - Ubuntu/Debian: `apt-get install atop`
-   - AlmaLinux: `dnf install epel-release && dnf install atop` (with retry)
+   - AlmaLinux/CentOS/CloudLinux: `dnf/yum install atop` (with EPEL retry for AlmaLinux)
 5. **Version Verification:** Confirms atop version matches expected
 6. **Capture:** `atop -w /tmp/fixture.raw 15 1` (15 seconds)
-7. **Transfer:** Multipass `transfer` or Lima mount copy
+7. **Transfer:** SSH-based `limactl cp` (deterministic, no race conditions)
 8. **Cleanup:** Optional VM deletion (or keep for reuse)
 
-**VM Naming Convention:**
-- **Multipass:** `mp-atop-ubuntu1804`, `mp-atop-debian12`
-- **Lima:** `lima-atop-alma8`, `lima-atop-alma9`
-
-**Prerequisites:**
-```bash
-# Install Multipass (Ubuntu/Debian)
-brew install multipass
-
-# Install Lima (AlmaLinux)
-brew install lima
-
-# Verify installations
-multipass version
-limactl list
-```
+**Advantages over Legacy Multipass Approach:**
+- Single backend works for all OS families (not platform-specific split)
+- SSH-based transfer more reliable than VirtioFS mounts
+- Unified abstractions enable code reuse and maintainability
+- Intelligent guardrails handle platform constraints (e.g., Apple Silicon VZ timeout)
 
 **Manual Fixture Generation (if automation fails):**
 
